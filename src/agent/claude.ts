@@ -1,26 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
-
 export async function askClaude(prompt: string): Promise<string> {
-  const msg = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-latest",
-    max_tokens: 500,
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
+  const apiKey = process.env.CLAUDE_API_KEY;
 
-  const textBlock = msg.content.find((c) => c.type === "text");
-
-  if (!textBlock) {
-    return "claude returned no text response.";
+  if (!apiKey) {
+    return "claude api key is missing in the deployment environment.";
   }
 
-  return textBlock.text;
+  try {
+    const anthropic = new Anthropic({ apiKey });
+
+    const msg = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-latest",
+      max_tokens: 500,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const textBlock = msg.content.find((c) => c.type === "text");
+
+    if (!textBlock || textBlock.type !== "text") {
+      return "claude returned no text response.";
+    }
+
+    return textBlock.text;
+  } catch (error) {
+    console.error("claude error:", error);
+    return "claude request failed. check vercel env vars and function logs.";
+  }
 }
