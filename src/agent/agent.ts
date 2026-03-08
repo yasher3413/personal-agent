@@ -11,7 +11,7 @@ export type ChudCommand =
   | { type: "help" }
   | { type: "summarize_thread" }
   | { type: "create_linear_issue" }
-  | { type: "search_slack"; raw: string };
+  | { type: "search_slack"; raw: string }
   | { type: "unknown"; raw: string };
 
 export function parseChudCommand(text: string): ChudCommand {
