@@ -32,7 +32,7 @@ export const chudMessageCallback = async ({
         })
         .join("\n");
     }
-
+    console.log("app_mention event payload:", JSON.stringify(event, null, 2));
     const response = await handleChudRequest({
       text,
       threadText,
