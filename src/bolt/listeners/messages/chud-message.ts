@@ -4,7 +4,6 @@ import { handleChudRequest } from "@/agent/agent";
 export const chudMessageCallback = async ({
   event,
   client,
-  say,
   logger,
 }: AllMiddlewareArgs & SlackEventMiddlewareArgs<"app_mention">) => {
   try {
@@ -16,6 +15,7 @@ export const chudMessageCallback = async ({
 
     let threadText: string | null = null;
 
+    // If the mention happened inside a thread, fetch that whole thread
     if (event.thread_ts) {
       const replies = await client.conversations.replies({
         channel: event.channel,
@@ -38,7 +38,16 @@ export const chudMessageCallback = async ({
       threadText,
     });
 
-    await say(response);
+    // Always reply in-thread:
+    // - if already in a thread, stay there
+    // - if top-level, create/use a thread rooted on the current message
+    const replyThreadTs = event.thread_ts ?? event.ts;
+
+    await client.chat.postMessage({
+      channel: event.channel,
+      text: response,
+      thread_ts: replyThreadTs,
+    });
   } catch (error) {
     logger.error(error);
   }
