@@ -1,4 +1,5 @@
 import { askClaude } from "./claude";
+import { formatKnowledgeAnswer, searchKnowledge } from "@/knowledge/search";
 
 export type ChudCommand =
   | { type: "ping" }
@@ -37,14 +38,21 @@ export async function handleChudRequest(text: string): Promise<string> {
         "*currently supported:*",
         "• `ping` → health check",
         "• `help` / `what can you do` → show supported commands",
+        "• questions about knowledge docs → search markdown knowledge base",
         "",
         "*coming next:*",
         "• summarize threads",
-        "• search knowledge base",
         "• create linear issues",
       ].join("\n");
 
-    case "unknown":
+    case "unknown": {
+      const knowledgeHit = searchKnowledge(command.raw);
+
+      if (knowledgeHit) {
+        return formatKnowledgeAnswer(knowledgeHit);
+      }
+
       return await askClaude(command.raw);
+    }
   }
 }
