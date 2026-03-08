@@ -40,6 +40,7 @@ const STOP_WORDS = new Set([
   "explain",
   "tell",
   "me",
+  "or",
 ]);
 
 function tokenize(text: string): string[] {
