@@ -9,21 +9,67 @@ export type KnowledgeHit = {
 
 const KNOWLEDGE_DIR = path.join(process.cwd(), "knowledge");
 
+// common low-signal words we should ignore
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "is",
+  "are",
+  "am",
+  "what",
+  "how",
+  "why",
+  "when",
+  "where",
+  "who",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "would",
+  "should",
+  "i",
+  "we",
+  "you",
+  "it",
+  "this",
+  "that",
+  "about",
+  "explain",
+  "tell",
+  "me",
+]);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/<@[^>]+>/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => !STOP_WORDS.has(word));
+}
+
 function scoreContent(query: string, content: string): number {
-  const q = query.toLowerCase();
-  const c = content.toLowerCase();
+  const queryWords = tokenize(query);
+  const contentLower = content.toLowerCase();
+
+  if (queryWords.length === 0) {
+    return 0;
+  }
 
   let score = 0;
 
-  const queryWords = q.split(/\s+/).filter(Boolean);
-
   for (const word of queryWords) {
-    if (c.includes(word)) {
-      score += 1;
+    if (contentLower.includes(word)) {
+      score += 2;
     }
   }
 
-  if (c.includes(q)) {
+  const cleanedFullQuery = queryWords.join(" ");
+  if (cleanedFullQuery && contentLower.includes(cleanedFullQuery)) {
     score += 5;
   }
 
@@ -55,7 +101,8 @@ export function searchKnowledge(query: string): KnowledgeHit | null {
     }
   }
 
-  if (!bestHit || bestHit.score === 0) {
+  // require a meaningful match before treating it as KB-backed
+  if (!bestHit || bestHit.score < 2) {
     return null;
   }
 
