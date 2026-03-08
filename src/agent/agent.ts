@@ -63,6 +63,7 @@ type HandleChudRequestInput = {
 export async function handleChudRequest({
   text,
   threadText,
+  slackClient,
 }: HandleChudRequestInput): Promise<string> {
   const command = parseChudCommand(text);
   
