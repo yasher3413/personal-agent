@@ -1,7 +1,6 @@
 import {
   askClaude,
   draftLinearIssueFromThread,
-  summarizeSlackThread,
 } from "./claude";
 import { searchKnowledge } from "@/knowledge/search";
 import { createLinearIssue } from "@/linear/create-issue";
@@ -11,7 +10,6 @@ export type ChudCommand =
   | { type: "help" }
   | { type: "summarize_thread" }
   | { type: "create_linear_issue" }
-  | { type: "search_slack"; raw: string }
   | { type: "unknown"; raw: string };
 
 export function parseChudCommand(text: string): ChudCommand {
@@ -48,11 +46,6 @@ export function parseChudCommand(text: string): ChudCommand {
   ) {
     return { type: "create_linear_issue" };
   }
-  const slackSearchMatch = normalized.match(/^search slack\s+(.+)/);
-
-  if (slackSearchMatch) {
-    return { type: "search_slack", raw: slackSearchMatch[1] };
-  }
 
   return { type: "unknown", raw: text };
 }
@@ -60,13 +53,11 @@ export function parseChudCommand(text: string): ChudCommand {
 type HandleChudRequestInput = {
   text: string;
   threadText?: string | null;
-  slackClient?: any;
 };
 
 export async function handleChudRequest({
   text,
   threadText,
-  slackClient,
 }: HandleChudRequestInput): Promise<string> {
   const command = parseChudCommand(text);
   
@@ -88,21 +79,12 @@ export async function handleChudRequest({
         "• `create linear issue from this thread` → create a Linear issue from thread context",
       ].join("\n");
 
-  case "search_slack":
-      if (!slackClient) {
-        return "slack search client not available.";
-      }
-
-        const { searchSlackMessages } = await import("@/slack/search");
-
-          return await searchSlackMessages(slackClient, command.raw);
 
     case "summarize_thread":
       if (!threadText) {
         return "i can only summarize a thread when you ask me inside a thread.";
       }
 
-      return await summarizeSlackThread(threadText);
       
 
     case "create_linear_issue":
