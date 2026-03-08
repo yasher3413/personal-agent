@@ -6,7 +6,6 @@ import {
 } from "./claude";
 import { searchKnowledge } from "@/knowledge/search";
 import { createLinearIssue } from "@/linear/create-issue";
-import { saveKnowledgeNote } from "@/knowledge/write";
 
 export type ChudCommand =
   | { type: "ping" }
@@ -126,17 +125,13 @@ export async function handleChudRequest({
             return "i couldn't turn that thread into a knowledge note.";
           }
     
-          try {
-            const saved = saveKnowledgeNote(draftedNote);
-    
-            return [
-              "saved thread to knowledge base inbox.",
-              `file: \`${saved.filename}\``,
-            ].join("\n");
-          } catch (error) {
-            console.error("saveKnowledgeNote error:", error);
-            return "i couldn't save that thread to the knowledge base.";
-          }
+          return [
+            "i drafted a knowledge base note from this thread.",
+            "",
+            "copy this into `knowledge/inbox/` locally or via github later:",
+            "",
+            draftedNote,
+          ].join("\n");
 
     case "summarize_thread":
       if (!threadText) {
