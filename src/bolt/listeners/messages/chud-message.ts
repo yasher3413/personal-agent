@@ -5,12 +5,11 @@ export const chudMessageCallback = async ({
   event,
   say,
   logger,
-}: AllMiddlewareArgs & SlackEventMiddlewareArgs<"message">) => {
+}: AllMiddlewareArgs & SlackEventMiddlewareArgs<"app_mention">) => {
   try {
-    const text = "text" in event ? event.text ?? "" : "";
+    const text = event.text ?? "";
 
-    // Ignore bot messages or empty events
-    if (!text || ("subtype" in event && event.subtype)) {
+    if (!text) {
       return;
     }
 
