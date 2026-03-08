@@ -1,16 +1,19 @@
 import {
   askClaude,
+  draftKnowledgeNoteFromThread,
   draftLinearIssueFromThread,
   summarizeSlackThread,
 } from "./claude";
 import { searchKnowledge } from "@/knowledge/search";
 import { createLinearIssue } from "@/linear/create-issue";
+import { saveKnowledgeNote } from "@/knowledge/write";
 
 export type ChudCommand =
   | { type: "ping" }
   | { type: "help" }
   | { type: "summarize_thread" }
   | { type: "create_linear_issue" }
+  | { type: "save_thread_to_kb" }
   | { type: "search_slack"; raw: string }
   | { type: "unknown"; raw: string };
 
@@ -30,6 +33,15 @@ export function parseChudCommand(text: string): ChudCommand {
     normalized.includes("commands")
   ) {
     return { type: "help" };
+  }
+
+  if (
+    normalized.includes("save this thread to knowledge base") ||
+    normalized.includes("save this thread to kb") ||
+    normalized.includes("save thread to knowledge base") ||
+    normalized.includes("save thread to kb")
+  ) {
+    return { type: "save_thread_to_kb" };
   }
 
   if (
@@ -88,6 +100,7 @@ export async function handleChudRequest({
         "• knowledge questions → search markdown knowledge base",
         "• `summarize this thread` → summarize the current Slack thread",
         "• `create linear issue from this thread` → create a Linear issue from thread context",
+        "• `save this thread to kb` → save the current thread into knowledge/inbox",
       ].join("\n");
 
       case "search_slack":
@@ -102,6 +115,28 @@ export async function handleChudRequest({
           query: command.raw,
           actionToken,
         });
+        case "save_thread_to_kb":
+          if (!threadText) {
+            return "i can only save a thread to the knowledge base when you ask me inside a thread.";
+          }
+    
+          const draftedNote = await draftKnowledgeNoteFromThread(threadText);
+    
+          if (!draftedNote) {
+            return "i couldn't turn that thread into a knowledge note.";
+          }
+    
+          try {
+            const saved = saveKnowledgeNote(draftedNote);
+    
+            return [
+              "saved thread to knowledge base inbox.",
+              `file: \`${saved.filename}\``,
+            ].join("\n");
+          } catch (error) {
+            console.error("saveKnowledgeNote error:", error);
+            return "i couldn't save that thread to the knowledge base.";
+          }
 
     case "summarize_thread":
       if (!threadText) {

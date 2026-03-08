@@ -162,3 +162,66 @@ ${threadText}
     return null;
   }
 }
+export async function draftKnowledgeNoteFromThread(
+    threadText: string
+  ): Promise<string | null> {
+    const apiKey = process.env.CLAUDE_API_KEY;
+  
+    if (!apiKey) {
+      return null;
+    }
+  
+    try {
+      const anthropic = new Anthropic({ apiKey });
+  
+      const prompt = `
+  You are turning an internal Slack thread into a reusable knowledge base note.
+  
+  Write a concise markdown note in this structure:
+  
+  # <short title>
+  
+  ## Summary
+  2-4 sentences summarizing the thread.
+  
+  ## Key Points
+  - point
+  - point
+  - point
+  
+  ## Action Items
+  - owner → action
+  - owner → action
+  
+  If there are no action items, write:
+  - none
+  
+  Keep it clean, useful, and concise for an internal startup knowledge base.
+  
+  Thread:
+  ${threadText}
+      `.trim();
+  
+      const msg = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 700,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+  
+      const textBlock = msg.content.find((c) => c.type === "text");
+  
+      if (!textBlock || textBlock.type !== "text") {
+        return null;
+      }
+  
+      return textBlock.text.trim();
+    } catch (error) {
+      console.error("draftKnowledgeNoteFromThread error:", error);
+      return null;
+    }
+  }
