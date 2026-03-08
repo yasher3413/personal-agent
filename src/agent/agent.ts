@@ -38,9 +38,9 @@ export function parseChudCommand(text: string): ChudCommand {
   }
 
   if (
-    normalized.includes("create linear issue from this thread") ||
-    normalized.includes("make linear issue from this thread") ||
-    normalized.includes("create issue from this thread")
+    /create (a )?linear issue from this thread/.test(normalized) ||
+    /make (a )?linear issue from this thread/.test(normalized) ||
+    /create (an )?issue from this thread/.test(normalized)
   ) {
     return { type: "create_linear_issue" };
   }
