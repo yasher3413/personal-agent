@@ -1,10 +1,16 @@
-import { askClaude, summarizeSlackThread } from "./claude";
-import { formatKnowledgeAnswer, searchKnowledge } from "@/knowledge/search";
+import {
+  askClaude,
+  draftLinearIssueFromThread,
+  summarizeSlackThread,
+} from "./claude";
+import { searchKnowledge } from "@/knowledge/search";
+import { createLinearIssue } from "@/linear/create-issue";
 
 export type ChudCommand =
   | { type: "ping" }
   | { type: "help" }
   | { type: "summarize_thread" }
+  | { type: "create_linear_issue" }
   | { type: "unknown"; raw: string };
 
 export function parseChudCommand(text: string): ChudCommand {
@@ -29,6 +35,14 @@ export function parseChudCommand(text: string): ChudCommand {
     normalized.includes("summarise thread")
   ) {
     return { type: "summarize_thread" };
+  }
+
+  if (
+    normalized.includes("create linear issue from this thread") ||
+    normalized.includes("make linear issue from this thread") ||
+    normalized.includes("create issue from this thread")
+  ) {
+    return { type: "create_linear_issue" };
   }
 
   return { type: "unknown", raw: text };
@@ -58,10 +72,7 @@ export async function handleChudRequest({
         "• `help` / `what can you do` → show supported commands",
         "• knowledge questions → search markdown knowledge base",
         "• `summarize this thread` → summarize the current Slack thread",
-        "",
-        "*coming next:*",
-        "• linear issue creation",
-        "• smarter tool routing",
+        "• `create linear issue from this thread` → create a Linear issue from thread context",
       ].join("\n");
 
     case "summarize_thread":
@@ -71,38 +82,62 @@ export async function handleChudRequest({
 
       return await summarizeSlackThread(threadText);
 
+    case "create_linear_issue":
+      if (!threadText) {
+        return "i can only create a Linear issue when you ask me inside a thread.";
+      }
+
+      const draftedIssue = await draftLinearIssueFromThread(threadText);
+
+      if (!draftedIssue) {
+        return "i couldn't draft a Linear issue from that thread.";
+      }
+
+      try {
+        const created = await createLinearIssue(draftedIssue);
+
+        return [
+          `created linear issue: *${created.identifier}*`,
+          created.title,
+          created.url,
+        ].join("\n");
+      } catch (error) {
+        console.error("createLinearIssue error:", error);
+        return "i couldn't create the Linear issue. check runtime logs and env vars.";
+      }
+
     case "unknown": {
       const knowledgeHit = searchKnowledge(command.raw);
 
       if (knowledgeHit) {
         return await askClaude(
           `You are Chud, an internal Slack agent.
-        
-        Answer the user's question using the internal knowledge document below.
-        Use the document as your primary source.
-        Be concise, clear, and natural for Slack.
-        Do not mention limitations unless necessary.
-        
-        Question:
-        ${command.raw}
-        
-        Knowledge document:
-        ${knowledgeHit.content}`
+
+Answer the user's question using the internal knowledge document below.
+Use the document as your primary source.
+Be concise, clear, and natural for Slack.
+Do not mention limitations unless necessary.
+
+Question:
+${command.raw}
+
+Knowledge document:
+${knowledgeHit.content}`
         );
       }
 
       return await askClaude(`
-        You are Chud, an internal Slack agent for the team.
-        
-        Behave like a helpful internal assistant.
-        Do not assume every question is about Gnomos.
-        If the user asks a general question, answer it normally and concisely.
-        If the user asks about company/project context, answer based on the information available.
-        Do not refuse just because the question is outside the knowledge base.
-        
-        User message:
-        ${command.raw}
-        `);
+You are Chud, an internal Slack agent for the team.
+
+Behave like a helpful internal assistant.
+Do not assume every question is about Gnomos.
+If the user asks a general question, answer it normally and concisely.
+If the user asks about company/project context, answer based on the information available.
+Do not refuse just because the question is outside the knowledge base.
+
+User message:
+${command.raw}
+`);
     }
   }
 }

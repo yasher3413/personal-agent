@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@linear/sdk": "^76.0.0",
     "@slack/bolt": "^4.6.0",
     "@vercel/slack-bolt": "latest",
     "next": "16.1.6",
