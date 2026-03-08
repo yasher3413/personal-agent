@@ -15,7 +15,10 @@ export type ChudCommand =
   | { type: "unknown"; raw: string };
 
 export function parseChudCommand(text: string): ChudCommand {
-  const normalized = text.toLowerCase().trim();
+  const normalized = text
+  .toLowerCase()
+  .replace(/<@[^>]+>/g, "")
+  .trim();
 
   if (normalized.includes("ping")) {
     return { type: "ping" };
