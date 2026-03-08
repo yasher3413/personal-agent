@@ -13,7 +13,7 @@ export async function askClaude(prompt: string): Promise<string> {
     const cleanedPrompt = prompt.replace(/<@[^>]+>/g, "").trim();
 
     const msg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-latest",
+      model: "claude-sonnet-4-6",
       max_tokens: 300,
       messages: [
         {
