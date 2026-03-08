@@ -1,7 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+// export async function askClaude(prompt: string): Promise<string> {
+//   const apiKey = process.env.CLAUDE_API_KEY;
 export async function askClaude(prompt: string): Promise<string> {
-  const apiKey = process.env.CLAUDE_API_KEY;
+  return `claude stub worked: ${prompt}`;
+}
 
   if (!apiKey) {
     return "claude api key is missing in the deployment environment.";
