@@ -76,19 +76,33 @@ export async function handleChudRequest({
 
       if (knowledgeHit) {
         return await askClaude(
-          `Answer the user's question using the following internal knowledge document.
-
-Question:
-${command.raw}
-
-Knowledge document:
-${knowledgeHit.content}
-
-Respond concisely for Slack.`
+          `You are Chud, an internal Slack agent.
+        
+        Answer the user's question using the internal knowledge document below.
+        Use the document as your primary source.
+        Be concise, clear, and natural for Slack.
+        Do not mention limitations unless necessary.
+        
+        Question:
+        ${command.raw}
+        
+        Knowledge document:
+        ${knowledgeHit.content}`
         );
       }
 
-      return await askClaude(command.raw);
+      return await askClaude(`
+        You are Chud, an internal Slack agent for the team.
+        
+        Behave like a helpful internal assistant.
+        Do not assume every question is about Gnomos.
+        If the user asks a general question, answer it normally and concisely.
+        If the user asks about company/project context, answer based on the information available.
+        Do not refuse just because the question is outside the knowledge base.
+        
+        User message:
+        ${command.raw}
+        `);
     }
   }
 }
