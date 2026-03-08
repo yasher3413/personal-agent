@@ -1,3 +1,5 @@
+import { askClaude } from "./claude";
+
 export type ChudCommand =
   | { type: "ping" }
   | { type: "help" }
@@ -43,12 +45,6 @@ export async function handleChudRequest(text: string): Promise<string> {
       ].join("\n");
 
     case "unknown":
-      return [
-        "i’m not wired for that yet.",
-        "",
-        "try:",
-        "• `@chud ping`",
-        "• `@chud help`",
-      ].join("\n");
+      return await askClaude(command.raw);
   }
 }
