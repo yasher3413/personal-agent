@@ -49,7 +49,17 @@ export async function handleChudRequest(text: string): Promise<string> {
       const knowledgeHit = searchKnowledge(command.raw);
 
       if (knowledgeHit) {
-        return formatKnowledgeAnswer(knowledgeHit);
+        return await askClaude(
+          `Answer the user's question using the following internal knowledge document.
+        
+        Question:
+        ${command.raw}
+        
+        Knowledge document:
+        ${knowledgeHit.content}
+        
+        Respond concisely for Slack.`
+        );      
       }
 
       return await askClaude(command.raw);
