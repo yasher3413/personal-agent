@@ -37,6 +37,7 @@ export const chudMessageCallback = async ({
       text,
       threadText,
       slackClient: client,
+      actionToken: (event as any).action_token,
     });
 
     // Always reply in-thread:

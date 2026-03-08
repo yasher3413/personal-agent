@@ -1,45 +1,53 @@
 import type { WebClient } from "@slack/web-api";
 
-export async function searchSlackMessages(
-  client: WebClient,
-  query: string
-): Promise<string> {
+type SearchSlackInput = {
+  client: WebClient;
+  query: string;
+  actionToken?: string;
+};
+
+export async function searchSlackMessages({
+  client,
+  query,
+  actionToken,
+}: SearchSlackInput): Promise<string> {
   const cleanedQuery = query.replace(/<@[^>]+>/g, "").trim();
 
   if (!cleanedQuery) {
     return "please give me something to search for, e.g. `@chud search slack billing`.";
   }
 
+  if (!actionToken) {
+    return "slack search needs an action token from the current app mention event.";
+  }
+
   try {
-    const result = await client.search.messages({
+    const result = await client.apiCall("assistant.search.context", {
       query: cleanedQuery,
-      count: 5,
-      sort: "score",
-      sort_dir: "desc",
-      highlight: false,
+      content_types: ["messages"],
+      channel_types: ["public_channel"],
+      action_token: actionToken,
     });
 
-    const matches = result.messages?.matches ?? [];
+    const items = Array.isArray((result as any).results)
+      ? (result as any).results
+      : [];
 
-    if (matches.length === 0) {
+    if (items.length === 0) {
       return `no Slack results found for: \`${cleanedQuery}\``;
     }
 
     const lines = [`*top Slack results for:* \`${cleanedQuery}\``, ""];
 
-    for (const match of matches.slice(0, 5)) {
+    for (const item of items.slice(0, 5)) {
       const channelName =
-        typeof match.channel?.name === "string"
-          ? `#${match.channel.name}`
-          : "unknown-channel";
-
+        item.channel?.name ? `#${item.channel.name}` : "unknown-channel";
       const text =
-        typeof match.text === "string"
-          ? match.text.slice(0, 180)
+        typeof item.text === "string"
+          ? item.text.slice(0, 180)
           : "(no text preview)";
-
       const permalink =
-        typeof match.permalink === "string" ? match.permalink : "";
+        typeof item.permalink === "string" ? item.permalink : "";
 
       lines.push(`• *${channelName}* — ${text}`);
       if (permalink) lines.push(`  ${permalink}`);
@@ -48,7 +56,7 @@ export async function searchSlackMessages(
 
     return lines.join("\n");
   } catch (error) {
-    console.error("slack search runtime error:", error);
-    return "slack search failed. check runtime logs and confirm `search:read.public` is installed.";
+    console.error("assistant.search.context runtime error:", error);
+    return "slack real-time search failed. check runtime logs and app scopes.";
   }
 }

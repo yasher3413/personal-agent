@@ -11,12 +11,14 @@ export async function createLinearIssue(input: LinearIssueInput) {
   if (!teamId) {
     throw new Error("LINEAR_TEAM_ID is missing");
   }
+  
 
   const response = await linear.createIssue({
     teamId,
     title: input.title,
     description: input.description,
   });
+  
 
   if (!response.success || !response.issue) {
     throw new Error("Failed to create Linear issue");
