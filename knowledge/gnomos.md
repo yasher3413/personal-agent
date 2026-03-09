@@ -1,6 +1,6 @@
 # Gnomos
 
-Gnomos is the financial operating system being built for compute infrastructure.
+Gnomos is the financial operating system being built for compute infrastructure created by Internet Backyard.
 
 It is being developed in phases:
 1. Accounts receivable automation
