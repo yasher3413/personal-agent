@@ -1,25 +1,34 @@
-import { tools } from "./tools";
+import type { WebClient } from "@slack/web-api";
+import { runAgentLoop } from "./claude";
+import { toolDefinitions, createToolExecutors } from "./tools";
+
+const SYSTEM_PROMPT = `\
+You are Chud, an internal AI assistant for Gnomos — a financial OS startup.
+
+Use tools to gather context before responding. Be concise.
+Respond in plain Slack-friendly text (bullets, no markdown headers).
+Only call create_linear_issue if the user explicitly asks to create or file an issue.`;
+
+type RunAgentParams = {
+  text: string;
+  slackClient: WebClient;
+  channel: string;
+  threadTs: string;
+};
 
 export async function runAgent({
   text,
   slackClient,
   channel,
   threadTs,
-}) {
+}: RunAgentParams): Promise<string> {
+  const ctx = { slackClient };
+  const userMessage = `[channel: ${channel}, thread_ts: ${threadTs}]\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
 
-  const response = await askClaude({
-    system: `
-You are Chud, an internal AI assistant.
-
-You have access to tools.
-
-If you need more context, call fetch_slack_history.
-If you need company info, search the knowledge base.
-If a user asks to create an issue, call create_linear_issue.
-`,
-    tools,
-    message: text
+  return runAgentLoop({
+    system: SYSTEM_PROMPT,
+    toolDefinitions,
+    toolExecutors: createToolExecutors(ctx),
+    userMessage,
   });
-
-  return response;
 }

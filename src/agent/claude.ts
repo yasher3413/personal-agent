@@ -1,227 +1,78 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const MODEL = "claude-sonnet-4-6";
+const MAX_ITERATIONS = 10;
 
-export async function askClaude(prompt: string): Promise<string> {
-  const apiKey = process.env.CLAUDE_API_KEY;
-
-  if (!apiKey) {
-    return "claude api key missing in vercel env vars.";
-  }
-
-  try {
-    const anthropic = new Anthropic({ apiKey });
-    const cleanedPrompt = prompt.replace(/<@[^>]+>/g, "").trim();
-
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 300,
-      messages: [
-        {
-          role: "user",
-          content: cleanedPrompt,
-        },
-      ],
-    });
-
-    const textBlock = msg.content.find((c) => c.type === "text");
-
-    if (!textBlock || textBlock.type !== "text") {
-      return "claude returned no text.";
-    }
-
-    return textBlock.text.trim();
-  } catch (error) {
-    console.error("claude runtime error:", error);
-    return "claude request failed. check vercel runtime logs.";
-  }
-}
-
-export async function summarizeSlackThread(threadText: string): Promise<string> {
-  const apiKey = process.env.CLAUDE_API_KEY;
-
-  if (!apiKey) {
-    return "claude api key missing in vercel env vars.";
-  }
-
-  try {
-    const anthropic = new Anthropic({ apiKey });
-
-    const prompt = `
-You are summarizing an internal Slack thread for a startup team.
-
-Summarize the thread in this exact Slack-friendly structure:
-
-*thread summary*
-
-*topic*
-<one short sentence>
-
-*key points*
-• point 1
-• point 2
-• point 3
-
-*action items*
-• owner → action
-• owner → action
-
-If there are no clear action items, say:
-• none
-
-Thread:
-${threadText}
-    `.trim();
-
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 500,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const textBlock = msg.content.find((c) => c.type === "text");
-
-    if (!textBlock || textBlock.type !== "text") {
-      return "claude returned no thread summary.";
-    }
-
-    return textBlock.text.trim();
-  } catch (error) {
-    console.error("thread summarization error:", error);
-    return "thread summarization failed. check vercel runtime logs.";
-  }
-}
-
-export type DraftLinearIssue = {
-  title: string;
-  description: string;
+type RunAgentLoopParams = {
+  system: string;
+  toolDefinitions: Anthropic.Tool[];
+  toolExecutors: Record<string, (input: unknown) => Promise<string>>;
+  userMessage: string;
 };
 
-export async function draftLinearIssueFromThread(
-  threadText: string
-): Promise<DraftLinearIssue | null> {
+export async function runAgentLoop({
+  system,
+  toolDefinitions,
+  toolExecutors,
+  userMessage,
+}: RunAgentLoopParams): Promise<string> {
   const apiKey = process.env.CLAUDE_API_KEY;
+  if (!apiKey) return "claude api key missing.";
 
-  if (!apiKey) {
-    return null;
-  }
+  const anthropic = new Anthropic({ apiKey });
+  const messages: Anthropic.MessageParam[] = [
+    { role: "user", content: userMessage },
+  ];
 
-  try {
-    const anthropic = new Anthropic({ apiKey });
-
-    const prompt = `
-You are helping create a Linear issue from an internal Slack thread.
-
-Return only valid JSON with this shape:
-{
-  "title": "short issue title",
-  "description": "clear markdown description with context, problem, and action items"
-}
-
-Rules:
-- title should be concise and specific
-- description should be useful to an engineering/ops team
-- no markdown code fences
-- no extra commentary
-
-Thread:
-${threadText}
-    `.trim();
-
-    const msg = await anthropic.messages.create({
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 700,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      max_tokens: 1024,
+      system,
+      tools: toolDefinitions,
+      messages,
     });
 
-    const textBlock = msg.content.find((c) => c.type === "text");
+    messages.push({ role: "assistant", content: response.content });
 
-    if (!textBlock || textBlock.type !== "text") {
-      return null;
+    if (response.stop_reason === "end_turn") {
+      const text = response.content.find((b) => b.type === "text");
+      return text?.text?.trim() ?? "(no response)";
     }
 
-    const parsed = JSON.parse(textBlock.text) as DraftLinearIssue;
+    if (response.stop_reason === "tool_use") {
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-    if (!parsed.title || !parsed.description) {
-      return null;
-    }
+      for (const block of response.content) {
+        if (block.type !== "tool_use") continue;
 
-    return parsed;
-  } catch (error) {
-    console.error("draftLinearIssueFromThread error:", error);
-    return null;
-  }
-}
-export async function draftKnowledgeNoteFromThread(
-    threadText: string
-  ): Promise<string | null> {
-    const apiKey = process.env.CLAUDE_API_KEY;
-  
-    if (!apiKey) {
-      return null;
-    }
-  
-    try {
-      const anthropic = new Anthropic({ apiKey });
-  
-      const prompt = `
-  You are turning an internal Slack thread into a reusable knowledge base note.
-  
-  Write a concise markdown note in this structure:
-  
-  # <short title>
-  
-  ## Summary
-  2-4 sentences summarizing the thread.
-  
-  ## Key Points
-  - point
-  - point
-  - point
-  
-  ## Action Items
-  - owner → action
-  - owner → action
-  
-  If there are no action items, write:
-  - none
-  
-  Keep it clean, useful, and concise for an internal startup knowledge base.
-  
-  Thread:
-  ${threadText}
-      `.trim();
-  
-      const msg = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 700,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
-  
-      const textBlock = msg.content.find((c) => c.type === "text");
-  
-      if (!textBlock || textBlock.type !== "text") {
-        return null;
+        const executor = toolExecutors[block.name];
+        let result: string;
+
+        if (!executor) {
+          result = JSON.stringify({ error: `unknown tool: ${block.name}` });
+        } else {
+          try {
+            result = await executor(block.input);
+          } catch (err) {
+            result = JSON.stringify({ error: String(err) });
+          }
+        }
+
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: result,
+        });
       }
-  
-      return textBlock.text.trim();
-    } catch (error) {
-      console.error("draftKnowledgeNoteFromThread error:", error);
-      return null;
+
+      messages.push({ role: "user", content: toolResults });
+      continue;
     }
+
+    // unexpected stop reason
+    break;
   }
+
+  return "agent loop exceeded max iterations.";
+}
