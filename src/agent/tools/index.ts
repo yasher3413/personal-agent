@@ -88,6 +88,6 @@ export function createToolExecutors(
       searchKnowledgeTool(input as { query: string }),
     create_linear_issue: (input) =>
       createLinearIssueTool(input as { title: string; description: string }),
-    lookup_user: (input) => lookupUser(input as { slack_user_id: string }),
+    lookup_user: (input) => lookupUser(input as { slack_user_id: string }, ctx.slackClient),
   };
 }
