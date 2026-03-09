@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 const MODEL = "claude-sonnet-4-6";
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 20;
 
 type RunAgentLoopParams = {
   system: string;
