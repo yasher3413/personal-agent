@@ -1,202 +1,25 @@
-import {
-  askClaude,
-  draftKnowledgeNoteFromThread,
-  draftLinearIssueFromThread,
-  summarizeSlackThread,
-} from "./claude";
-import { searchKnowledge } from "@/knowledge/search";
-import { createLinearIssue } from "@/linear/create-issue";
+import { tools } from "./tools";
 
-export type ChudCommand =
-  | { type: "ping" }
-  | { type: "help" }
-  | { type: "summarize_thread" }
-  | { type: "create_linear_issue" }
-  | { type: "save_thread_to_kb" }
-  | { type: "search_slack"; raw: string }
-  | { type: "unknown"; raw: string };
-
-export function parseChudCommand(text: string): ChudCommand {
-  const normalized = text
-  .toLowerCase()
-  .replace(/<@[^>]+>/g, "")
-  .trim();
-
-  if (normalized.includes("ping")) {
-    return { type: "ping" };
-  }
-
-  if (
-    normalized.includes("help") ||
-    normalized.includes("what can you do") ||
-    normalized.includes("commands")
-  ) {
-    return { type: "help" };
-  }
-
-  if (
-    normalized.includes("save this thread to knowledge base") ||
-    normalized.includes("save this thread to kb") ||
-    normalized.includes("save thread to knowledge base") ||
-    normalized.includes("save thread to kb")
-  ) {
-    return { type: "save_thread_to_kb" };
-  }
-
-  if (
-    normalized.includes("summarize this thread") ||
-    normalized.includes("summarise this thread") ||
-    normalized.includes("summarize thread") ||
-    normalized.includes("summarise thread")
-  ) {
-    return { type: "summarize_thread" };
-  }
-
-  if (
-    /create (a )?linear issue from this thread/.test(normalized) ||
-    /make (a )?linear issue from this thread/.test(normalized) ||
-    /create (an )?issue from this thread/.test(normalized)
-  ) {
-    return { type: "create_linear_issue" };
-  }
-  const slackSearchMatch = normalized.match(/^search slack\s+(.+)/);
-
-  if (slackSearchMatch) {
-    return { type: "search_slack", raw: slackSearchMatch[1] };
-  }
-
-  return { type: "unknown", raw: text };
-}
-
-type HandleChudRequestInput = {
-  text: string;
-  threadText?: string | null;
-  slackClient?: any;
-  actionToken?: string;
-};
-
-export async function handleChudRequest({
+export async function runAgent({
   text,
-  threadText,
   slackClient,
-  actionToken,
-}: HandleChudRequestInput): Promise<string> {
-  const command = parseChudCommand(text);
-  
+  channel,
+  threadTs,
+}) {
 
-  switch (command.type) {
-    
-    case "ping":
-      return "pong";
+  const response = await askClaude({
+    system: `
+You are Chud, an internal AI assistant.
 
-    case "help":
-      return [
-        "*chud is online*",
-        "",
-        "*currently supported:*",
-        "• `ping` → health check",
-        "• `help` / `what can you do` → show supported commands",
-        "• knowledge questions → search markdown knowledge base",
-        "• `summarize this thread` → summarize the current Slack thread",
-        "• `create linear issue from this thread` → create a Linear issue from thread context",
-        "• `save this thread to kb` → save the current thread into knowledge/inbox",
-      ].join("\n");
+You have access to tools.
 
-      case "search_slack":
-        if (!slackClient) {
-          return "slack search client not available.";
-        }
-  
-        const { searchSlackMessages } = await import("@/slack/search");
-  
-        return await searchSlackMessages({
-          client: slackClient,
-          query: command.raw,
-          actionToken,
-        });
-        case "save_thread_to_kb":
-          if (!threadText) {
-            return "i can only save a thread to the knowledge base when you ask me inside a thread.";
-          }
-    
-          const draftedNote = await draftKnowledgeNoteFromThread(threadText);
-    
-          if (!draftedNote) {
-            return "i couldn't turn that thread into a knowledge note.";
-          }
-    
-          return [
-            "i drafted a knowledge base note from this thread.",
-            "",
-            "copy this into `knowledge/inbox/` locally or via github later:",
-            "",
-            draftedNote,
-          ].join("\n");
+If you need more context, call fetch_slack_history.
+If you need company info, search the knowledge base.
+If a user asks to create an issue, call create_linear_issue.
+`,
+    tools,
+    message: text
+  });
 
-    case "summarize_thread":
-      if (!threadText) {
-        return "i can only summarize a thread when you ask me inside a thread.";
-      }
-
-      return await summarizeSlackThread(threadText);
-      
-
-    case "create_linear_issue":
-      if (!threadText) {
-        return "i can only create a Linear issue when you ask me inside a thread.";
-      }
-
-      const draftedIssue = await draftLinearIssueFromThread(threadText);
-
-      if (!draftedIssue) {
-        return "i couldn't draft a Linear issue from that thread.";
-      }
-
-      try {
-        const created = await createLinearIssue(draftedIssue);
-
-        return [
-          `created linear issue: *${created.identifier}*`,
-          created.title,
-          created.url,
-        ].join("\n");
-      } catch (error) {
-        console.error("createLinearIssue error:", error);
-        return "i couldn't create the Linear issue. check runtime logs and env vars.";
-      }
-
-    case "unknown": {
-      const knowledgeHit = searchKnowledge(command.raw);
-
-      if (knowledgeHit) {
-        return await askClaude(
-          `You are Chud, an internal Slack agent.
-
-Answer the user's question using the internal knowledge document below.
-Use the document as your primary source.
-Be concise, clear, and natural for Slack.
-Do not mention limitations unless necessary.
-
-Question:
-${command.raw}
-
-Knowledge document:
-${knowledgeHit.content}`
-        );
-      }
-
-      return await askClaude(`
-You are Chud, an internal Slack agent for the team.
-
-Behave like a helpful internal assistant.
-Do not assume every question is about Gnomos.
-If the user asks a general question, answer it normally and concisely.
-If the user asks about company/project context, answer based on the information available.
-Do not refuse just because the question is outside the knowledge base.
-
-User message:
-${command.raw}
-`);
-    }
-  }
+  return response;
 }
