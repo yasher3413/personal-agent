@@ -61,7 +61,8 @@ export const toolDefinitions: Anthropic.Tool[] = [
   },
   {
     name: "lookup_user",
-    description: "Look up a Gnomos team member by their Slack user ID.",
+    description:
+      "Look up an Internet Backyard team member. Provide either slack_user_id for a direct lookup, or name to search by display name or real name.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -69,8 +70,12 @@ export const toolDefinitions: Anthropic.Tool[] = [
           type: "string",
           description: "Slack user ID (e.g. U012AB3CD)",
         },
+        name: {
+          type: "string",
+          description: "Name or partial name to search for (e.g. 'jonah', 'gabe')",
+        },
       },
-      required: ["slack_user_id"],
+      required: [],
     },
   },
 ];
