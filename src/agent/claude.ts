@@ -36,13 +36,13 @@ export async function runAgentLoop({
     { role: "user", content: userMessage },
   ];
 
-  // Merge memory tool into definitions if available, then mark last tool for caching
-  const baseTools = memoryTool
-    ? ([...toolDefinitions, MEMORY_TOOL_DEF] as Anthropic.Tool[])
-    : toolDefinitions;
-  const allTools = baseTools.map((t, i) =>
-    i === baseTools.length - 1 ? { ...t, cache_control: { type: "ephemeral" as const } } : t
+  // Cache breakpoint on last regular tool, then append memory tool after (uncached)
+  const cachedToolDefs = toolDefinitions.map((t, i) =>
+    i === toolDefinitions.length - 1 ? { ...t, cache_control: { type: "ephemeral" as const } } : t
   );
+  const allTools = memoryTool
+    ? ([...cachedToolDefs, MEMORY_TOOL_DEF] as Anthropic.Tool[])
+    : cachedToolDefs;
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     let accumulatedText = "";
