@@ -7,7 +7,7 @@
       "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
         "@linear/sdk": "^76.0.0",
-        "@notionhq/client": "^5.12.0",
+        "@notionhq/client": "2.2.3",
         "@slack/bolt": "^4.6.0",
         "@supermemory/tools": "^1.4.0",
         "@vercel/slack-bolt": "latest",
@@ -112,7 +112,7 @@
 
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.1.6", "", { "os": "win32", "cpu": "x64" }, "sha512-NRfO39AIrzBnixKbjuo2YiYhB6o9d8v/ymU9m/Xk8cyVk+k7XylniXkHwjs4s70wedVffc6bQNbufk5v0xEm0A=="],
 
-    "@notionhq/client": ["@notionhq/client@5.12.0", "", {}, "sha512-yLdw1saMUx4lmwMXOk72QK/N0wuw9x0JuOAuAX+q2Z8IEZzB5di6SEKL6a8eNh5cy3RLKdeXaXJFF4NF2LwXDg=="],
+    "@notionhq/client": ["@notionhq/client@2.2.3", "", { "dependencies": { "@types/node-fetch": "^2.5.10", "node-fetch": "^2.6.1" } }, "sha512-ZqUzY0iRg/LIrwS+wzz/6osSB2nxIpmqdAtdUwzpcimc9Jlu1j85FeYdaU26Shr193CFrl2TLFeKqpk/APRQ4g=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 

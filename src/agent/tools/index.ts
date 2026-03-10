@@ -2,9 +2,10 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchNotionTool, getNotionPageTool } from "./search-notion";
-import { writeNotionPageTool } from "./write-notion-page";
+import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool } from "./linear";
 import { lookupUser, listUsers } from "./lookup-user";
+import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -57,8 +58,50 @@ export const toolDefinitions: Anthropic.Tool[] = [
       properties: {
         title: { type: "string", description: "Page title" },
         content: { type: "string", description: "Page content in markdown" },
+        area: { type: "string", description: "Knowledge base area/section (optional)" },
       },
       required: ["title", "content"],
+    },
+  },
+  {
+    name: "append_notion_page",
+    description: "Append content to an existing Notion page by its page ID.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        page_id: { type: "string", description: "Notion page ID to append to" },
+        content: { type: "string", description: "Content to append in markdown" },
+      },
+      required: ["page_id", "content"],
+    },
+  },
+  {
+    name: "add_knowledge_index_item",
+    description: "Add a new entry to the Knowledge Base Index database after creating a Notion page. Always call this after write_notion_page to keep the index in sync.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string", description: "Page title" },
+        summary: { type: "string", description: "One-sentence summary for the index" },
+        area: { type: "string", description: "Knowledge base area/category" },
+        tags: { type: "array", items: { type: "string" }, description: "Searchable tags" },
+        page_id: { type: "string", description: "The Notion page ID returned by write_notion_page" },
+      },
+      required: ["title", "summary", "area", "tags", "page_id"],
+    },
+  },
+  {
+    name: "update_knowledge_index_item",
+    description: "Update an existing Knowledge Base Index entry after modifying a Notion page. Always call this after append_notion_page to keep the index in sync.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        page_id: { type: "string", description: "The Notion page ID to find and update in the index" },
+        summary: { type: "string", description: "Updated summary (optional)" },
+        tags: { type: "array", items: { type: "string" }, description: "Updated tags (optional)" },
+        area: { type: "string", description: "Updated area (optional)" },
+      },
+      required: ["page_id"],
     },
   },
   {
@@ -149,7 +192,12 @@ export function createToolExecutors(
       fetchSlackHistory(input as Parameters<typeof fetchSlackHistory>[0], ctx.slackClient),
     search_notion: (input) => searchNotionTool(input as { query: string }),
     get_notion_page: (input) => getNotionPageTool(input as { page_id: string }),
-    write_notion_page: (input) => writeNotionPageTool(input as { title: string; content: string }),
+    write_notion_page: (input) => writeNotionPageTool(input as { title: string; content: string; area?: string }),
+    append_notion_page: (input) => appendNotionPageTool(input as { page_id: string; content: string }),
+    add_knowledge_index_item: (input) =>
+      addKnowledgeIndexItemTool(input as { title: string; summary: string; area: string; tags: string[]; page_id: string }),
+    update_knowledge_index_item: (input) =>
+      updateKnowledgeIndexItemTool(input as { page_id: string; summary?: string; tags?: string[]; area?: string }),
     create_linear_issue: (input) =>
       createLinearIssueTool(input as { title: string; description: string; priority?: number }),
     update_linear_issue: (input) =>

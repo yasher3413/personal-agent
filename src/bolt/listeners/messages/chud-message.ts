@@ -14,6 +14,9 @@ const TOOL_STATUS: Record<string, string> = {
   list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
   list_users: "Fetching team directory...",
+  append_notion_page: "Updating Notion page...",
+  add_knowledge_index_item: "Updating knowledge index...",
+  update_knowledge_index_item: "Updating knowledge index...",
 };
 
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {

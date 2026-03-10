@@ -6,9 +6,17 @@ function getNotionClient(): Client | null {
   return new Client({ auth });
 }
 
-const PARENT_PAGE_ID = process.env.NOTION_PARENT_PAGE_ID;
+function getParentId(area?: string): string | null {
+  if (area) {
+    try {
+      const areaMap = JSON.parse(process.env.NOTION_AREA_PAGE_IDS ?? "{}");
+      if (areaMap[area]) return areaMap[area];
+    } catch {}
+  }
+  return process.env.NOTION_PARENT_PAGE_ID ?? null;
+}
 
-function mdToNotionBlocks(content: string) {
+export function mdToNotionBlocks(content: string) {
   const blocks: object[] = [];
   for (const line of content.split("\n")) {
     if (line.startsWith("# ")) {
@@ -28,33 +36,55 @@ function mdToNotionBlocks(content: string) {
   return blocks;
 }
 
-export async function writeNotionPageTool(input: { title: string; content: string }): Promise<string> {
+async function appendBlocks(notion: Client, pageId: string, blocks: object[]) {
+  const CHUNK_SIZE = 100;
+  for (let i = 0; i < blocks.length; i += CHUNK_SIZE) {
+    await notion.blocks.children.append({
+      block_id: pageId,
+      // @ts-expect-error blocks type
+      children: blocks.slice(i, i + CHUNK_SIZE),
+    });
+  }
+}
+
+export async function writeNotionPageTool(input: {
+  title: string;
+  content: string;
+  area?: string;
+}): Promise<string> {
   const notion = getNotionClient();
   if (!notion) return JSON.stringify({ error: "NOTION_API_KEY not set" });
-  if (!PARENT_PAGE_ID) return JSON.stringify({ error: "NOTION_PARENT_PAGE_ID not set" });
+  const parentId = getParentId(input.area);
+  if (!parentId) return JSON.stringify({ error: "NOTION_PARENT_PAGE_ID not set" });
 
   try {
     const blocks = mdToNotionBlocks(input.content);
-    const CHUNK_SIZE = 100;
-
     const page = await notion.pages.create({
-      parent: { type: "page_id", page_id: PARENT_PAGE_ID },
+      parent: { type: "page_id", page_id: parentId },
       properties: {
         title: { title: [{ type: "text", text: { content: input.title } }] },
       },
       // @ts-expect-error blocks type
-      children: blocks.slice(0, CHUNK_SIZE),
+      children: blocks.slice(0, 100),
     });
-
-    for (let i = CHUNK_SIZE; i < blocks.length; i += CHUNK_SIZE) {
-      await notion.blocks.children.append({
-        block_id: page.id,
-        // @ts-expect-error blocks type
-        children: blocks.slice(i, i + CHUNK_SIZE),
-      });
-    }
-
+    await appendBlocks(notion, page.id, blocks.slice(100));
     return JSON.stringify({ success: true, page_id: page.id, title: input.title });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function appendNotionPageTool(input: {
+  page_id: string;
+  content: string;
+}): Promise<string> {
+  const notion = getNotionClient();
+  if (!notion) return JSON.stringify({ error: "NOTION_API_KEY not set" });
+
+  try {
+    const blocks = mdToNotionBlocks(input.content);
+    await appendBlocks(notion, input.page_id, blocks);
+    return JSON.stringify({ success: true });
   } catch (err) {
     return JSON.stringify({ error: String(err) });
   }
