@@ -23,41 +23,53 @@ const TOOL_STATUS: Record<string, string> = {
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
-  // Status message shown during tool calls — deleted once the response starts streaming
+  // Status message updated during tool calls, deleted when response starts
   const statusMsg = await client.chat.postMessage({
     channel: event.channel,
     thread_ts: threadTs,
     text: "_Analyzing..._",
   });
 
-  const streamer = client.chatStream({
-    channel: event.channel,
-    thread_ts: threadTs,
-    recipient_user_id: event.user,
-    recipient_team_id: body.team_id,
-  });
-
+  // Streamer is created lazily on first chunk to avoid a blank stream message
+  // sitting alongside the status message during tool calls
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let streamer: any = null;
   let statusDeleted = false;
+
   const deleteStatus = async () => {
     if (!statusDeleted && statusMsg.ts) {
       statusDeleted = true;
-      await client.chat.delete({ channel: event.channel, ts: statusMsg.ts }).catch(() => {});
+      await client.chat.delete({ channel: event.channel, ts: statusMsg.ts }).catch((err) => {
+        console.error("chat.delete error:", err);
+      });
     }
+  };
+
+  const getStreamer = () => {
+    if (!streamer) {
+      streamer = client.chatStream({
+        channel: event.channel,
+        thread_ts: threadTs,
+        recipient_user_id: event.user,
+        recipient_team_id: body.team_id,
+      });
+    }
+    return streamer;
   };
 
   const onChunk = async (delta: string) => {
     await deleteStatus();
-    await streamer.append({ markdown_text: delta });
+    await getStreamer().append({ markdown_text: delta });
   };
 
   const onToolCall = async (toolName: string) => {
-    if (statusDeleted) return;
+    if (statusDeleted || !statusMsg.ts) return;
     const status = TOOL_STATUS[toolName] ?? `Running ${toolName}...`;
     await client.chat.update({
       channel: event.channel,
-      ts: statusMsg.ts!,
+      ts: statusMsg.ts,
       text: `_${status}_`,
-    }).catch(() => {});
+    }).catch((err) => console.error("chat.update error:", err));
   };
 
   try {
@@ -71,9 +83,10 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
       onToolCall,
     });
     await deleteStatus();
-    await streamer.stop({});
-  } catch {
+    await streamer?.stop({});
+  } catch (err) {
+    console.error("chudMessageCallback error:", err);
     await deleteStatus();
-    await streamer.stop({});
+    await streamer?.stop({});
   }
 };
