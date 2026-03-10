@@ -38,8 +38,8 @@ async function loadMemoryContext(userId: string): Promise<string> {
 
     const files = dir.content
       .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#") && !l.startsWith("Files") && !l.startsWith("-"));
+      .map((l) => l.trim().replace(/^-\s*/, ""))  // strip leading "- " prefix
+      .filter((l) => l && !l.startsWith("#") && l.includes("."));
 
     const sections: string[] = [];
     for (const file of files.slice(0, 20)) {
