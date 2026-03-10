@@ -20,12 +20,40 @@ Knowledge Base Index rules:
 - Never create a duplicate KB page — if the index already has an entry for the topic, use append_notion_page instead.
 - If search_notion returns no results and the topic is not in the index, acknowledge the gap and offer to create a new KB entry.
 
-You have persistent memory across conversations. At the start of every conversation, use the memory tool to view "/memories/" and read any relevant files before using any other tools — memory contains context about people, preferences, and past decisions that should inform your response. Store memories proactively when you learn something worth retaining.`;
+You have persistent memory across conversations. Use the memory tool to store new facts you learn. The current contents of your memory are injected below — use them directly without needing to re-read.`;
 
 function getMemoryTool(userId?: string) {
   const key = process.env.SUPERMEMORY_API_KEY;
   if (!key) return undefined;
   return createClaudeMemoryTool(key, userId ? { memoryContainerTag: userId } : undefined);
+}
+
+async function loadMemoryContext(userId: string): Promise<string> {
+  const key = process.env.SUPERMEMORY_API_KEY;
+  if (!key) return "";
+  const tool = createClaudeMemoryTool(key, { memoryContainerTag: userId });
+  try {
+    const dir = await tool.handleCommand({ command: "view", path: "/memories/" });
+    if (!dir.success || !dir.content?.trim()) return "";
+
+    const files = dir.content
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#") && !l.startsWith("Files") && !l.startsWith("-"));
+
+    const sections: string[] = [];
+    for (const file of files.slice(0, 20)) {
+      const path = file.startsWith("/") ? file : `/memories/${file}`;
+      const result = await tool.handleCommand({ command: "view", path });
+      if (result.success && result.content?.trim()) {
+        sections.push(`### ${file}\n${result.content.trim()}`);
+      }
+    }
+    if (!sections.length) return "";
+    return `## Memory\n\n${sections.join("\n\n")}`;
+  } catch {
+    return "";
+  }
 }
 
 type RunAgentParams = {
@@ -51,13 +79,16 @@ export async function runAgent({
   const userContext = userId ? `[user: ${userId}, channel: ${channel}, thread_ts: ${threadTs}]` : `[channel: ${channel}, thread_ts: ${threadTs}]`;
   const userMessage = `${userContext}\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
 
-  const kbContext = await getKnowledgeContext();
-  const system = kbContext
-    ? [
-        { type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } },
-        { type: "text" as const, text: kbContext },
-      ]
-    : [{ type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } }];
+  const [kbContext, memoryContext] = await Promise.all([
+    getKnowledgeContext(),
+    userId ? loadMemoryContext(userId) : Promise.resolve(""),
+  ]);
+
+  const system = [
+    { type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } },
+    ...(kbContext ? [{ type: "text" as const, text: kbContext }] : []),
+    ...(memoryContext ? [{ type: "text" as const, text: memoryContext }] : []),
+  ];
 
   return runAgentLoop({
     system,
