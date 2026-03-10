@@ -4,6 +4,7 @@ import { runAgent } from "../../../agent/agent";
 type AppMentionArgs = SlackEventMiddlewareArgs<"app_mention"> & AllMiddlewareArgs;
 
 const TOOL_STATUS: Record<string, string> = {
+  web_search: "Searching the web...",
   fetch_slack_history: "Reading Slack history...",
   search_notion: "Searching Notion...",
   get_notion_page: "Reading Notion page...",

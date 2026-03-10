@@ -7,6 +7,7 @@ import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listL
 import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { listChannels } from "./list-channels";
+import { webSearchTool } from "./web-search";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -200,6 +201,18 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "web_search",
+    description: "Search the web for current information, news, documentation, or anything not in the internal knowledge base.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Search query" },
+        num_results: { type: "number", description: "Number of results to return (default 5)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "list_channels",
     description:
       "List all Slack channels in the workspace. Use this when you need to find a channel by name before fetching its history.",
@@ -259,6 +272,7 @@ export function createToolExecutors(
     list_linear_projects: () => listLinearProjectsTool(),
     list_linear_labels: () => listLinearLabelsTool(),
     list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
+    web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
     list_channels: () => listChannels(ctx.slackClient),
     list_users: () => listUsers(ctx.slackClient),
     lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
