@@ -13,6 +13,7 @@ const TOOL_STATUS: Record<string, string> = {
   get_linear_issue: "Fetching Linear issue...",
   list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
+  list_channels: "Listing channels...",
   list_users: "Fetching team directory...",
   append_notion_page: "Updating Notion page...",
   add_knowledge_index_item: "Updating knowledge index...",

@@ -6,6 +6,7 @@ import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool } from "./linear";
 import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
+import { listChannels } from "./list-channels";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -160,6 +161,16 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "list_channels",
+    description:
+      "List all Slack channels in the workspace. Use this when you need to find a channel by name before fetching its history.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: "list_users",
     description:
       "List all active team members at Internet Backyard. Use this when asked for a directory, team list, or 'who's on the team'.",
@@ -205,6 +216,7 @@ export function createToolExecutors(
     get_linear_issue: (input) => getLinearIssueTool(input as { id: string }),
     list_linear_issues: (input) =>
       listLinearIssuesTool(input as { query?: string; state?: string; assignee?: string; limit?: number }),
+    list_channels: () => listChannels(ctx.slackClient),
     list_users: () => listUsers(ctx.slackClient),
     lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
   };
