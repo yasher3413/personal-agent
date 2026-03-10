@@ -25,13 +25,15 @@ export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => 
   });
 
   const messageTs = placeholder.ts!;
+  let accumulatedText = "";
   let lastUpdateAt = 0;
 
-  const onChunk = async (text: string) => {
+  const onChunk = async (delta: string) => {
+    accumulatedText += delta;
     const now = Date.now();
     if (now - lastUpdateAt < STREAM_THROTTLE_MS) return;
     lastUpdateAt = now;
-    await client.chat.update({ channel: event.channel, ts: messageTs, text });
+    await client.chat.update({ channel: event.channel, ts: messageTs, text: accumulatedText });
   };
 
   const onToolCall = async (toolName: string) => {

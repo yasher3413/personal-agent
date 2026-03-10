@@ -8,7 +8,7 @@ type RunAgentLoopParams = {
   toolDefinitions: Anthropic.Tool[];
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
-  onChunk?: (accumulatedText: string) => Promise<void>;
+  onChunk?: (delta: string) => Promise<void>;
   onToolCall?: (toolName: string) => Promise<void>;
 };
 
@@ -46,7 +46,7 @@ export async function runAgentLoop({
         onChunk
       ) {
         accumulatedText += event.delta.text;
-        await onChunk(accumulatedText);
+        await onChunk(event.delta.text);
       }
     }
 
