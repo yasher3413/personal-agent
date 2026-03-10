@@ -6,6 +6,13 @@ type AppMentionArgs = SlackEventMiddlewareArgs<"app_mention"> & AllMiddlewareArg
 export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
+  // post placeholder immediately so the user sees a response right away
+  const placeholder = await client.chat.postMessage({
+    channel: event.channel,
+    thread_ts: threadTs,
+    text: "...",
+  });
+
   const response = await runAgent({
     text: event.text,
     slackClient: client,
@@ -13,9 +20,10 @@ export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => 
     threadTs,
   });
 
-  await client.chat.postMessage({
+  // update placeholder with the real response
+  await client.chat.update({
     channel: event.channel,
-    thread_ts: threadTs,
+    ts: placeholder.ts!,
     text: response,
   });
 };
