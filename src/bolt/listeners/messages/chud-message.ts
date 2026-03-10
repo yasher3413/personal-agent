@@ -22,6 +22,13 @@ const TOOL_STATUS: Record<string, string> = {
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
+  // Status message shown during tool calls — deleted once the response starts streaming
+  const statusMsg = await client.chat.postMessage({
+    channel: event.channel,
+    thread_ts: threadTs,
+    text: "_Analyzing..._",
+  });
+
   const streamer = client.chatStream({
     channel: event.channel,
     thread_ts: threadTs,
@@ -29,13 +36,27 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
     recipient_team_id: body.team_id,
   });
 
+  let statusDeleted = false;
+  const deleteStatus = async () => {
+    if (!statusDeleted && statusMsg.ts) {
+      statusDeleted = true;
+      await client.chat.delete({ channel: event.channel, ts: statusMsg.ts }).catch(() => {});
+    }
+  };
+
   const onChunk = async (delta: string) => {
+    await deleteStatus();
     await streamer.append({ markdown_text: delta });
   };
 
   const onToolCall = async (toolName: string) => {
+    if (statusDeleted) return;
     const status = TOOL_STATUS[toolName] ?? `Running ${toolName}...`;
-    await streamer.append({ markdown_text: `_${status}_\n` });
+    await client.chat.update({
+      channel: event.channel,
+      ts: statusMsg.ts!,
+      text: `_${status}_`,
+    }).catch(() => {});
   };
 
   try {
@@ -48,8 +69,10 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
       onChunk,
       onToolCall,
     });
+    await deleteStatus();
     await streamer.stop({});
-  } catch (err) {
+  } catch {
+    await deleteStatus();
     await streamer.stop({});
   }
 };
