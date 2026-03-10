@@ -20,7 +20,7 @@ Knowledge Base Index rules:
 - Never create a duplicate KB page — if the index already has an entry for the topic, use append_notion_page instead.
 - If search_notion returns no results and the topic is not in the index, acknowledge the gap and offer to create a new KB entry.
 
-You have persistent memory across conversations. Always read from your memory at the start of every conversation before using any other tools — it contains context about people, preferences, and past decisions that should inform your response. Store memories proactively when you learn something worth retaining.`;
+You have persistent memory across conversations. At the start of every conversation, use the memory tool to view "/memories/" and read any relevant files before using any other tools — memory contains context about people, preferences, and past decisions that should inform your response. Store memories proactively when you learn something worth retaining.`;
 
 function getMemoryTool(userId?: string) {
   const key = process.env.SUPERMEMORY_API_KEY;
