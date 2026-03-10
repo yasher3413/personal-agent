@@ -22,10 +22,10 @@ Knowledge Base Index rules:
 
 You have persistent memory across conversations. Use it to remember user preferences, past decisions, and important context. Store memories proactively when you learn something worth retaining.`;
 
-function getMemoryTool() {
+function getMemoryTool(userId?: string) {
   const key = process.env.SUPERMEMORY_API_KEY;
   if (!key) return undefined;
-  return createClaudeMemoryTool(key);
+  return createClaudeMemoryTool(key, userId ? { memoryContainerTag: userId } : undefined);
 }
 
 type RunAgentParams = {
@@ -64,7 +64,7 @@ export async function runAgent({
     toolDefinitions,
     toolExecutors: createToolExecutors(ctx),
     userMessage,
-    memoryTool: getMemoryTool(),
+    memoryTool: getMemoryTool(userId),
     onChunk,
     onToolCall,
   });
