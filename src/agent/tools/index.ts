@@ -5,7 +5,6 @@ import { searchNotionTool, getNotionPageTool } from "./search-notion";
 import { writeNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool } from "./linear";
 import { lookupUser, listUsers } from "./lookup-user";
-import { searchMemoryTool, addMemoryTool } from "./supermemory";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -118,32 +117,6 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
-    name: "search_memory",
-    description:
-      "Search persistent memory for things previously remembered about a user or the team. Use this proactively at the start of conversations to recall relevant context.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        query: { type: "string", description: "What to search for" },
-        user_id: { type: "string", description: "Slack user ID to scope results to a specific person (optional)" },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "add_memory",
-    description:
-      "Save something to persistent memory — user preferences, decisions, or context worth remembering across conversations. Only call when the user asks you to remember something, or when you learn something clearly worth retaining.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        content: { type: "string", description: "What to remember" },
-        user_id: { type: "string", description: "Slack user ID to associate this memory with (optional)" },
-      },
-      required: ["content"],
-    },
-  },
-  {
     name: "list_users",
     description:
       "List all active team members at Internet Backyard. Use this when asked for a directory, team list, or 'who's on the team'.",
@@ -184,8 +157,6 @@ export function createToolExecutors(
     get_linear_issue: (input) => getLinearIssueTool(input as { id: string }),
     list_linear_issues: (input) =>
       listLinearIssuesTool(input as { query?: string; state?: string; assignee?: string; limit?: number }),
-    search_memory: (input) => searchMemoryTool(input as { query: string; user_id?: string }),
-    add_memory: (input) => addMemoryTool(input as { content: string; user_id?: string }),
     list_users: () => listUsers(ctx.slackClient),
     lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
   };

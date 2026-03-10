@@ -14,8 +14,6 @@ const TOOL_STATUS: Record<string, string> = {
   list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
   list_users: "Fetching team directory...",
-  search_memory: "Searching memory...",
-  add_memory: "Saving to memory...",
 };
 
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
@@ -43,6 +41,7 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
       slackClient: client,
       channel: event.channel,
       threadTs,
+      userId: event.user,
       onChunk,
       onToolCall,
     });

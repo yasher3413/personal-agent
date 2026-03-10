@@ -1,13 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { ClaudeMemoryTool, MemoryCommand } from "@supermemory/tools/claude-memory";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_ITERATIONS = 20;
+const MEMORY_BETA = "context-management-2025-06-27";
+// Built-in memory tool definition — no schema needed, Claude knows how to use it
+const MEMORY_TOOL_DEF = { type: "memory_20250818" as const };
 
 type RunAgentLoopParams = {
   system: string;
   toolDefinitions: Anthropic.Tool[];
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
+  memoryTool?: ClaudeMemoryTool;
   onChunk?: (delta: string) => Promise<void>;
   onToolCall?: (toolName: string) => Promise<void>;
 };
@@ -17,6 +22,7 @@ export async function runAgentLoop({
   toolDefinitions,
   toolExecutors,
   userMessage,
+  memoryTool,
   onChunk,
   onToolCall,
 }: RunAgentLoopParams): Promise<string> {
@@ -28,16 +34,28 @@ export async function runAgentLoop({
     { role: "user", content: userMessage },
   ];
 
+  // Merge memory tool into definitions if available
+  const allTools = memoryTool
+    ? ([...toolDefinitions, MEMORY_TOOL_DEF] as Anthropic.Tool[])
+    : toolDefinitions;
+
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     let accumulatedText = "";
 
-    const stream = anthropic.messages.stream({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const streamParams: any = {
       model: MODEL,
       max_tokens: 1024,
       system,
-      tools: toolDefinitions,
+      tools: allTools,
       messages,
-    });
+    };
+    if (memoryTool) streamParams.betas = [MEMORY_BETA];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream: any = memoryTool
+      ? anthropic.beta.messages.stream(streamParams)
+      : anthropic.messages.stream(streamParams);
 
     for await (const event of stream) {
       if (
@@ -51,39 +69,46 @@ export async function runAgentLoop({
     }
 
     const response = await stream.finalMessage();
-    messages.push({ role: "assistant", content: response.content });
+    const content = response.content as Anthropic.ContentBlock[];
+    messages.push({ role: "assistant", content: content as Anthropic.MessageParam["content"] });
 
     if (response.stop_reason === "end_turn") {
-      const text = response.content.find((b) => b.type === "text");
-      return text?.text?.trim() ?? "(no response)";
+      const text = content.find((b) => b.type === "text");
+      return (text as Anthropic.TextBlock | undefined)?.text?.trim() ?? "(no response)";
     }
 
     if (response.stop_reason === "tool_use") {
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const block of response.content) {
+      for (const block of content) {
         if (block.type !== "tool_use") continue;
 
         if (onToolCall) await onToolCall(block.name);
 
         const executor = toolExecutors[block.name];
-        let result: string;
 
-        if (!executor) {
-          result = JSON.stringify({ error: `unknown tool: ${block.name}` });
+        if (!executor && memoryTool) {
+          // Route to native memory tool
+          const memResult = await memoryTool.handleCommandForToolResult(
+            block.input as MemoryCommand,
+            block.id
+          );
+          toolResults.push(memResult as unknown as Anthropic.ToolResultBlockParam);
+        } else if (!executor) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify({ error: `unknown tool: ${block.name}` }),
+          });
         } else {
+          let result: string;
           try {
             result = await executor(block.input);
           } catch (err) {
             result = JSON.stringify({ error: String(err) });
           }
+          toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
-
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: result,
-        });
       }
 
       messages.push({ role: "user", content: toolResults });

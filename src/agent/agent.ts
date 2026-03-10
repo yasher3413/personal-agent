@@ -1,4 +1,5 @@
 import type { WebClient } from "@slack/web-api";
+import { createClaudeMemoryTool } from "@supermemory/tools/claude-memory";
 import { runAgentLoop } from "./claude";
 import { toolDefinitions, createToolExecutors } from "./tools";
 
@@ -11,13 +12,20 @@ Only call create_linear_issue if the user explicitly asks to create or file an i
 Only call write_notion_page if the user explicitly asks to save, document, or add something to the knowledge base.
 When asked to save a thread or conversation to the knowledge base, first call fetch_slack_history with the current thread_ts to read the messages, then summarize them into a concise knowledge base article and call write_notion_page with that summary.
 If search_notion returns no results, don't just say "I don't know" — acknowledge the gap and offer to create a new knowledge base entry on that topic if the user can provide the details.
-Use search_memory at the start of conversations to recall relevant context about the user. Only call add_memory when the user explicitly asks you to remember something, or when you learn a clear preference or decision worth retaining long-term.`;
+You have persistent memory across conversations. Use it to remember user preferences, past decisions, and important context. Store memories proactively when you learn something worth retaining.`;
+
+function getMemoryTool() {
+  const key = process.env.SUPERMEMORY_API_KEY;
+  if (!key) return undefined;
+  return createClaudeMemoryTool(key);
+}
 
 type RunAgentParams = {
   text: string;
   slackClient: WebClient;
   channel: string;
   threadTs: string;
+  userId?: string;
   onChunk?: (text: string) => Promise<void>;
   onToolCall?: (toolName: string) => Promise<void>;
 };
@@ -27,17 +35,20 @@ export async function runAgent({
   slackClient,
   channel,
   threadTs,
+  userId,
   onChunk,
   onToolCall,
 }: RunAgentParams): Promise<string> {
   const ctx = { slackClient };
-  const userMessage = `[channel: ${channel}, thread_ts: ${threadTs}]\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
+  const userContext = userId ? `[user: ${userId}, channel: ${channel}, thread_ts: ${threadTs}]` : `[channel: ${channel}, thread_ts: ${threadTs}]`;
+  const userMessage = `${userContext}\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
 
   return runAgentLoop({
     system: SYSTEM_PROMPT,
     toolDefinitions,
     toolExecutors: createToolExecutors(ctx),
     userMessage,
+    memoryTool: getMemoryTool(),
     onChunk,
     onToolCall,
   });

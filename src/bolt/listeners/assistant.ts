@@ -12,8 +12,6 @@ const TOOL_STATUS: Record<string, string> = {
   list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
   list_users: "Fetching team directory...",
-  search_memory: "Searching memory...",
-  add_memory: "Saving to memory...",
 };
 
 export const assistant = new Assistant({
@@ -54,7 +52,7 @@ export const assistant = new Assistant({
     };
 
     try {
-      await runAgent({ text, slackClient: client, channel, threadTs, onChunk, onToolCall });
+      await runAgent({ text, slackClient: client, channel, threadTs, userId: msg.user, onChunk, onToolCall });
       await streamer.stop({});
     } catch (err) {
       await streamer.stop({});
