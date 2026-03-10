@@ -1,11 +1,9 @@
 import { LinearClient } from "@linear/sdk";
 
-const apiKey = process.env.LINEAR_API_KEY;
-
-if (!apiKey) {
-  throw new Error("LINEAR_API_KEY is missing");
+function getLinearClient(): LinearClient {
+  const apiKey = process.env.LINEAR_API_KEY;
+  if (!apiKey) throw new Error("LINEAR_API_KEY is missing");
+  return new LinearClient({ apiKey });
 }
 
-export const linear = new LinearClient({
-  apiKey,
-});
+export { getLinearClient };

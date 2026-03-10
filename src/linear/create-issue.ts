@@ -1,4 +1,4 @@
-import { linear } from "./client";
+import { getLinearClient } from "./client";
 
 export type LinearIssueInput = {
   title: string;
@@ -6,12 +6,9 @@ export type LinearIssueInput = {
 };
 
 export async function createLinearIssue(input: LinearIssueInput) {
+  const linear = getLinearClient();
   const teamId = process.env.LINEAR_TEAM_ID;
-
-  if (!teamId) {
-    throw new Error("LINEAR_TEAM_ID is missing");
-  }
-  
+  if (!teamId) throw new Error("LINEAR_TEAM_ID is missing");
 
   const response = await linear.createIssue({
     teamId,

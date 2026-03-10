@@ -9,8 +9,13 @@ const TOOL_STATUS: Record<string, string> = {
   get_notion_page: "Reading Notion page...",
   write_notion_page: "Saving to Notion...",
   create_linear_issue: "Creating Linear issue...",
+  update_linear_issue: "Updating Linear issue...",
+  get_linear_issue: "Fetching Linear issue...",
+  list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
   list_users: "Fetching team directory...",
+  search_memory: "Searching memory...",
+  add_memory: "Saving to memory...",
 };
 
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
