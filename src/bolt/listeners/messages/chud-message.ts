@@ -13,12 +13,14 @@ const TOOL_STATUS: Record<string, string> = {
   list_users: "Fetching team directory...",
 };
 
-export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => {
+export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
   const streamer = client.chatStream({
     channel: event.channel,
     thread_ts: threadTs,
+    recipient_user_id: event.user,
+    recipient_team_id: body.team_id,
   });
 
   const onChunk = async (delta: string) => {
