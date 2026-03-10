@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchNotionTool, getNotionPageTool } from "./search-notion";
+import { writeNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool } from "./create-linear-issue";
 import { lookupUser, listUsers } from "./lookup-user";
 
@@ -54,6 +55,19 @@ export const toolDefinitions: Anthropic.Tool[] = [
         page_id: { type: "string", description: "Notion page ID" },
       },
       required: ["page_id"],
+    },
+  },
+  {
+    name: "write_notion_page",
+    description:
+      "Create a new page in the Internet Backyard knowledge base. Use this when the user explicitly asks to save, document, or add something to the knowledge base.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string", description: "Page title" },
+        content: { type: "string", description: "Page content in markdown" },
+      },
+      required: ["title", "content"],
     },
   },
   {
@@ -114,6 +128,7 @@ export function createToolExecutors(
       ),
     search_notion: (input) => searchNotionTool(input as { query: string }),
     get_notion_page: (input) => getNotionPageTool(input as { page_id: string }),
+    write_notion_page: (input) => writeNotionPageTool(input as { title: string; content: string }),
     create_linear_issue: (input) =>
       createLinearIssueTool(input as { title: string; description: string }),
     list_users: () => listUsers(ctx.slackClient),

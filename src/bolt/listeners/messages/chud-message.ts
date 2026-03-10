@@ -9,6 +9,7 @@ const TOOL_STATUS: Record<string, string> = {
   fetch_slack_history: "_reading slack history..._",
   search_notion: "_searching notion..._",
   get_notion_page: "_reading notion page..._",
+  write_notion_page: "_saving to notion..._",
   create_linear_issue: "_creating linear issue..._",
   lookup_user: "_looking up user..._",
   list_users: "_fetching team directory..._",
