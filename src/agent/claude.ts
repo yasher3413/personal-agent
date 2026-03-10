@@ -8,6 +8,7 @@ type RunAgentLoopParams = {
   toolDefinitions: Anthropic.Tool[];
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
+  onChunk?: (accumulatedText: string) => Promise<void>;
 };
 
 export async function runAgentLoop({
@@ -15,6 +16,7 @@ export async function runAgentLoop({
   toolDefinitions,
   toolExecutors,
   userMessage,
+  onChunk,
 }: RunAgentLoopParams): Promise<string> {
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return "claude api key missing.";
@@ -25,7 +27,9 @@ export async function runAgentLoop({
   ];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const response = await anthropic.messages.create({
+    let accumulatedText = "";
+
+    const stream = anthropic.messages.stream({
       model: MODEL,
       max_tokens: 1024,
       system,
@@ -33,6 +37,18 @@ export async function runAgentLoop({
       messages,
     });
 
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta" &&
+        onChunk
+      ) {
+        accumulatedText += event.delta.text;
+        await onChunk(accumulatedText);
+      }
+    }
+
+    const response = await stream.finalMessage();
     messages.push({ role: "assistant", content: response.content });
 
     if (response.stop_reason === "end_turn") {
@@ -70,7 +86,6 @@ export async function runAgentLoop({
       continue;
     }
 
-    // unexpected stop reason
     break;
   }
 

@@ -14,6 +14,7 @@ type RunAgentParams = {
   slackClient: WebClient;
   channel: string;
   threadTs: string;
+  onChunk?: (text: string) => Promise<void>;
 };
 
 export async function runAgent({
@@ -21,6 +22,7 @@ export async function runAgent({
   slackClient,
   channel,
   threadTs,
+  onChunk,
 }: RunAgentParams): Promise<string> {
   const ctx = { slackClient };
   const userMessage = `[channel: ${channel}, thread_ts: ${threadTs}]\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
@@ -30,5 +32,6 @@ export async function runAgent({
     toolDefinitions,
     toolExecutors: createToolExecutors(ctx),
     userMessage,
+    onChunk,
   });
 }
