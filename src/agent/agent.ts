@@ -32,28 +32,46 @@ async function loadMemoryContext(userId: string): Promise<string> {
   const key = process.env.SUPERMEMORY_API_KEY;
   if (!key) return "";
   const tool = createClaudeMemoryTool(key, { memoryContainerTag: userId });
-  try {
-    const dir = await tool.handleCommand({ command: "view", path: "/memories/" });
-    if (!dir.success || !dir.content?.trim()) return "";
+  const sections: string[] = [];
 
-    const files = dir.content
-      .split("\n")
-      .map((l) => l.trim().replace(/^-\s*/, ""))  // strip leading "- " prefix
-      .filter((l) => l && !l.startsWith("#") && l.includes("."));
-
-    const sections: string[] = [];
-    for (const file of files.slice(0, 20)) {
-      const path = file.startsWith("/") ? file : `/memories/${file}`;
+  // Try known paths first (Claude consistently uses these names)
+  const knownPaths = ["/memories/context.md", "/memories/user_preferences.md", "/memories/team.md"];
+  for (const path of knownPaths) {
+    try {
       const result = await tool.handleCommand({ command: "view", path });
       if (result.success && result.content?.trim()) {
-        sections.push(`### ${file}\n${result.content.trim()}`);
+        sections.push(result.content.trim());
+      }
+    } catch {}
+  }
+
+  // Then scan directory for any other files
+  try {
+    const dir = await tool.handleCommand({ command: "view", path: "/memories/" });
+    if (dir.success && dir.content?.trim()) {
+      const extraFiles = dir.content
+        .split("\n")
+        .map((l) => l.trim().replace(/^-\s*/, ""))
+        .filter((l) => l && !l.startsWith("#") && l.includes(".") && !knownPaths.includes(`/memories/${l}`));
+      for (const file of extraFiles.slice(0, 10)) {
+        const path = file.startsWith("/") ? file : `/memories/${file}`;
+        try {
+          const result = await tool.handleCommand({ command: "view", path });
+          if (result.success && result.content?.trim()) {
+            sections.push(result.content.trim());
+          }
+        } catch {}
       }
     }
-    if (!sections.length) return "";
-    return `## Memory\n\n${sections.join("\n\n")}`;
-  } catch {
+  } catch {}
+
+  if (!sections.length) {
+    console.log("[memory] no content loaded for user", userId);
     return "";
   }
+  const ctx = `## Memory\n\n${sections.join("\n\n---\n\n")}`;
+  console.log("[memory] loaded for user", userId, "- chars:", ctx.length);
+  return ctx;
 }
 
 type RunAgentParams = {
