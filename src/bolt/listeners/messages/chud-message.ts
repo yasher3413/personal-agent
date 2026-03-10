@@ -3,52 +3,44 @@ import { runAgent } from "../../../agent/agent";
 
 type AppMentionArgs = SlackEventMiddlewareArgs<"app_mention"> & AllMiddlewareArgs;
 
-const STREAM_THROTTLE_MS = 300;
-
 const TOOL_STATUS: Record<string, string> = {
-  fetch_slack_history: "_reading slack history..._",
-  search_notion: "_searching notion..._",
-  get_notion_page: "_reading notion page..._",
-  write_notion_page: "_saving to notion..._",
-  create_linear_issue: "_creating linear issue..._",
-  lookup_user: "_looking up user..._",
-  list_users: "_fetching team directory..._",
+  fetch_slack_history: "Reading Slack history...",
+  search_notion: "Searching Notion...",
+  get_notion_page: "Reading Notion page...",
+  write_notion_page: "Saving to Notion...",
+  create_linear_issue: "Creating Linear issue...",
+  lookup_user: "Looking up user...",
+  list_users: "Fetching team directory...",
 };
 
 export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
-  const placeholder = await client.chat.postMessage({
+  const streamer = client.chatStream({
     channel: event.channel,
     thread_ts: threadTs,
-    text: "...",
   });
 
-  const messageTs = placeholder.ts!;
-  let accumulatedText = "";
-  let lastUpdateAt = 0;
-
   const onChunk = async (delta: string) => {
-    accumulatedText += delta;
-    const now = Date.now();
-    if (now - lastUpdateAt < STREAM_THROTTLE_MS) return;
-    lastUpdateAt = now;
-    await client.chat.update({ channel: event.channel, ts: messageTs, text: accumulatedText });
+    await streamer.append({ markdown_text: delta });
   };
 
   const onToolCall = async (toolName: string) => {
-    const status = TOOL_STATUS[toolName] ?? `_running ${toolName}..._`;
-    await client.chat.update({ channel: event.channel, ts: messageTs, text: status });
+    const status = TOOL_STATUS[toolName] ?? `Running ${toolName}...`;
+    await streamer.append({ markdown_text: `_${status}_\n` });
   };
 
-  const response = await runAgent({
-    text: event.text,
-    slackClient: client,
-    channel: event.channel,
-    threadTs,
-    onChunk,
-    onToolCall,
-  });
-
-  await client.chat.update({ channel: event.channel, ts: messageTs, text: response });
+  try {
+    await runAgent({
+      text: event.text,
+      slackClient: client,
+      channel: event.channel,
+      threadTs,
+      onChunk,
+      onToolCall,
+    });
+    await streamer.stop({});
+  } catch (err) {
+    await streamer.stop({});
+  }
 };

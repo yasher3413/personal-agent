@@ -32,7 +32,12 @@ export const assistant = new Assistant({
 
     await setStatus("Analyzing...");
 
-    const streamer = client.chatStream({ channel, thread_ts: threadTs });
+    const streamer = client.chatStream({
+      channel,
+      thread_ts: threadTs,
+      recipient_user_id: msg.user,
+      recipient_team_id: msg.team,
+    });
 
     const onChunk = async (delta: string) => {
       await streamer.append({ markdown_text: delta });
