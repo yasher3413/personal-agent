@@ -7,7 +7,8 @@ const STREAM_THROTTLE_MS = 300;
 
 const TOOL_STATUS: Record<string, string> = {
   fetch_slack_history: "_reading slack history..._",
-  search_knowledge: "_searching knowledge base..._",
+  search_notion: "_searching notion..._",
+  get_notion_page: "_reading notion page..._",
   create_linear_issue: "_creating linear issue..._",
   lookup_user: "_looking up user..._",
   list_users: "_fetching team directory..._",

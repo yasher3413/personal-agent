@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
-import { searchKnowledgeTool } from "./search-knowledge";
+import { searchNotionTool, getNotionPageTool } from "./search-notion";
 import { createLinearIssueTool } from "./create-linear-issue";
 import { lookupUser, listUsers } from "./lookup-user";
 
@@ -33,14 +33,27 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
-    name: "search_knowledge",
-    description: "Search the internal Gnomos knowledge base for a given query.",
+    name: "search_notion",
+    description:
+      "Search the Internet Backyard Notion workspace for internal documentation, processes, or knowledge. Use this to answer questions about the company, product, or team.",
     input_schema: {
       type: "object" as const,
       properties: {
         query: { type: "string", description: "Search query" },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "get_notion_page",
+    description:
+      "Retrieve the full content of a specific Notion page by its ID. Use this after search_notion to read a page in detail.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        page_id: { type: "string", description: "Notion page ID" },
+      },
+      required: ["page_id"],
     },
   },
   {
@@ -99,8 +112,8 @@ export function createToolExecutors(
         input as Parameters<typeof fetchSlackHistory>[0],
         ctx.slackClient
       ),
-    search_knowledge: (input) =>
-      searchKnowledgeTool(input as { query: string }),
+    search_notion: (input) => searchNotionTool(input as { query: string }),
+    get_notion_page: (input) => getNotionPageTool(input as { page_id: string }),
     create_linear_issue: (input) =>
       createLinearIssueTool(input as { title: string; description: string }),
     list_users: () => listUsers(ctx.slackClient),

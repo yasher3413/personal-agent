@@ -7,6 +7,7 @@
       "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
         "@linear/sdk": "^76.0.0",
+        "@notionhq/client": "^5.12.0",
         "@slack/bolt": "^4.6.0",
         "@vercel/slack-bolt": "latest",
         "next": "16.1.6",
@@ -99,6 +100,8 @@
     "@next/swc-win32-arm64-msvc": ["@next/swc-win32-arm64-msvc@16.1.6", "", { "os": "win32", "cpu": "arm64" }, "sha512-gQmm8izDTPgs+DCWH22kcDmuUp7NyiJgEl18bcr8irXA5N2m2O+JQIr6f3ct42GOs9c0h8QF3L5SzIxcYAAXXw=="],
 
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.1.6", "", { "os": "win32", "cpu": "x64" }, "sha512-NRfO39AIrzBnixKbjuo2YiYhB6o9d8v/ymU9m/Xk8cyVk+k7XylniXkHwjs4s70wedVffc6bQNbufk5v0xEm0A=="],
+
+    "@notionhq/client": ["@notionhq/client@5.12.0", "", {}, "sha512-yLdw1saMUx4lmwMXOk72QK/N0wuw9x0JuOAuAX+q2Z8IEZzB5di6SEKL6a8eNh5cy3RLKdeXaXJFF4NF2LwXDg=="],
 
     "@slack/bolt": ["@slack/bolt@4.6.0", "", { "dependencies": { "@slack/logger": "^4.0.0", "@slack/oauth": "^3.0.4", "@slack/socket-mode": "^2.0.5", "@slack/types": "^2.18.0", "@slack/web-api": "^7.12.0", "axios": "^1.12.0", "express": "^5.0.0", "path-to-regexp": "^8.1.0", "raw-body": "^3", "tsscmp": "^1.0.6" }, "peerDependencies": { "@types/express": "^5.0.0" } }, "sha512-xPgfUs2+OXSugz54Ky07pA890+Qydk22SYToi8uGpXeHSt1JWwFJkRyd/9Vlg5I1AdfdpGXExDpwnbuN9Q/2dQ=="],
 
