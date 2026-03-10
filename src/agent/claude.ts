@@ -9,6 +9,7 @@ type RunAgentLoopParams = {
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
   onChunk?: (accumulatedText: string) => Promise<void>;
+  onToolCall?: (toolName: string) => Promise<void>;
 };
 
 export async function runAgentLoop({
@@ -17,6 +18,7 @@ export async function runAgentLoop({
   toolExecutors,
   userMessage,
   onChunk,
+  onToolCall,
 }: RunAgentLoopParams): Promise<string> {
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return "claude api key missing.";
@@ -61,6 +63,8 @@ export async function runAgentLoop({
 
       for (const block of response.content) {
         if (block.type !== "tool_use") continue;
+
+        if (onToolCall) await onToolCall(block.name);
 
         const executor = toolExecutors[block.name];
         let result: string;

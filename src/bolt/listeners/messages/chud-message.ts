@@ -3,7 +3,15 @@ import { runAgent } from "../../../agent/agent";
 
 type AppMentionArgs = SlackEventMiddlewareArgs<"app_mention"> & AllMiddlewareArgs;
 
-const STREAM_THROTTLE_MS = 750;
+const STREAM_THROTTLE_MS = 300;
+
+const TOOL_STATUS: Record<string, string> = {
+  fetch_slack_history: "_reading slack history..._",
+  search_knowledge: "_searching knowledge base..._",
+  create_linear_issue: "_creating linear issue..._",
+  lookup_user: "_looking up user..._",
+  list_users: "_fetching team directory..._",
+};
 
 export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
@@ -21,11 +29,12 @@ export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => 
     const now = Date.now();
     if (now - lastUpdateAt < STREAM_THROTTLE_MS) return;
     lastUpdateAt = now;
-    await client.chat.update({
-      channel: event.channel,
-      ts: messageTs,
-      text,
-    });
+    await client.chat.update({ channel: event.channel, ts: messageTs, text });
+  };
+
+  const onToolCall = async (toolName: string) => {
+    const status = TOOL_STATUS[toolName] ?? `_running ${toolName}..._`;
+    await client.chat.update({ channel: event.channel, ts: messageTs, text: status });
   };
 
   const response = await runAgent({
@@ -34,12 +43,8 @@ export const chudMessageCallback = async ({ event, client }: AppMentionArgs) => 
     channel: event.channel,
     threadTs,
     onChunk,
+    onToolCall,
   });
 
-  // final update with complete response (no throttle)
-  await client.chat.update({
-    channel: event.channel,
-    ts: messageTs,
-    text: response,
-  });
+  await client.chat.update({ channel: event.channel, ts: messageTs, text: response });
 };
