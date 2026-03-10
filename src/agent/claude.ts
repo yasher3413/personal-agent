@@ -5,7 +5,7 @@ const MODEL = "claude-sonnet-4-6";
 const MAX_ITERATIONS = 20;
 const MEMORY_BETA = "context-management-2025-06-27";
 // Built-in memory tool definition — no schema needed, Claude knows how to use it
-const MEMORY_TOOL_DEF = { type: "memory_20250818" as const };
+const MEMORY_TOOL_DEF = { type: "memory_20250818" as const, name: "memory" };
 
 type SystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 
