@@ -7,6 +7,29 @@ async function getTeamId(): Promise<string> {
   return teamId;
 }
 
+// Accepts UUID, "INT-523", or bare "523" — returns the internal UUID
+async function resolveIssueId(linear: ReturnType<typeof getLinearClient>, id: string): Promise<string> {
+  // Already a UUID
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return id;
+
+  const teamId = await getTeamId();
+  let filter: Record<string, unknown>;
+
+  if (/^\d+$/.test(id)) {
+    // Bare number e.g. "523"
+    filter = { team: { id: { eq: teamId } }, number: { eq: Number(id) } };
+  } else {
+    // Identifier e.g. "INT-523"
+    filter = { team: { id: { eq: teamId } }, identifier: { eq: id.toUpperCase() } };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const res = await linear.issues({ filter: filter as any, first: 1 });
+  const match = res.nodes[0];
+  if (!match) throw new Error(`Issue not found: ${id}`);
+  return match.id;
+}
+
 export async function createLinearIssueTool(input: {
   title: string;
   description: string;
@@ -50,7 +73,7 @@ export async function updateLinearIssueTool(input: {
       stateId = match?.id;
     }
 
-    const res = await linear.updateIssue(input.id, {
+    const res = await linear.updateIssue(await resolveIssueId(linear, input.id), {
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -68,7 +91,7 @@ export async function updateLinearIssueTool(input: {
 export async function getLinearIssueTool(input: { id: string }): Promise<string> {
   try {
     const linear = getLinearClient();
-    const issue = await linear.issue(input.id);
+    const issue = await linear.issue(await resolveIssueId(linear, input.id));
     if (!issue) return JSON.stringify({ error: "Issue not found" });
 
     const [state, assignee] = await Promise.all([issue.state, issue.assignee]);
@@ -128,6 +151,61 @@ export async function listLinearIssuesTool(input: {
     );
 
     return JSON.stringify({ issues: results, total: results.length });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function addLinearCommentTool(input: {
+  issue_id: string;
+  body: string;
+}): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const res = await linear.createComment({ issueId: await resolveIssueId(linear, input.issue_id), body: input.body });
+    if (!res.success) throw new Error("Failed to create comment");
+    return JSON.stringify({ success: true });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function listLinearProjectsTool(): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const projects = await linear.projects({ first: 50 });
+    const results = projects.nodes.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? null,
+      state: p.state,
+      url: p.url,
+    }));
+    return JSON.stringify({ projects: results });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function listLinearLabelsTool(): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const teamId = await getTeamId();
+    const labels = await linear.issueLabels({ filter: { team: { id: { eq: teamId } } } });
+    const results = labels.nodes.map((l) => ({ id: l.id, name: l.name, color: l.color }));
+    return JSON.stringify({ labels: results });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function listLinearWorkflowStatesTool(): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const teamId = await getTeamId();
+    const states = await linear.workflowStates({ filter: { team: { id: { eq: teamId } } } });
+    const results = states.nodes.map((s) => ({ id: s.id, name: s.name, type: s.type }));
+    return JSON.stringify({ states: results });
   } catch (err) {
     return JSON.stringify({ error: String(err) });
   }

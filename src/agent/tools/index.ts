@@ -3,7 +3,7 @@ import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchNotionTool, getNotionPageTool } from "./search-notion";
 import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
-import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool } from "./linear";
+import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool } from "./linear";
 import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { listChannels } from "./list-channels";
@@ -161,6 +161,45 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "add_linear_comment",
+    description: "Add a comment to an existing Linear issue.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        issue_id: { type: "string", description: "Linear issue ID" },
+        body: { type: "string", description: "Comment body in markdown" },
+      },
+      required: ["issue_id", "body"],
+    },
+  },
+  {
+    name: "list_linear_projects",
+    description: "List all Linear projects for the workspace.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "list_linear_labels",
+    description: "List all issue labels for the team.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "list_linear_workflow_states",
+    description: "List all workflow states (e.g. Todo, In Progress, Done) for the team.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: "list_channels",
     description:
       "List all Slack channels in the workspace. Use this when you need to find a channel by name before fetching its history.",
@@ -216,6 +255,10 @@ export function createToolExecutors(
     get_linear_issue: (input) => getLinearIssueTool(input as { id: string }),
     list_linear_issues: (input) =>
       listLinearIssuesTool(input as { query?: string; state?: string; assignee?: string; limit?: number }),
+    add_linear_comment: (input) => addLinearCommentTool(input as { issue_id: string; body: string }),
+    list_linear_projects: () => listLinearProjectsTool(),
+    list_linear_labels: () => listLinearLabelsTool(),
+    list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
     list_channels: () => listChannels(ctx.slackClient),
     list_users: () => listUsers(ctx.slackClient),
     lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
