@@ -3,7 +3,7 @@ import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchKnowledgeTool } from "./search-knowledge";
 import { createLinearIssueTool } from "./create-linear-issue";
-import { lookupUser } from "./lookup-user";
+import { lookupUser, listUsers } from "./lookup-user";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -60,6 +60,16 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "list_users",
+    description:
+      "List all active team members at Internet Backyard. Use this when asked for a directory, team list, or 'who's on the team'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: "lookup_user",
     description:
       "Look up an Internet Backyard team member. Provide either slack_user_id for a direct lookup, or name to search by display name or real name.",
@@ -93,6 +103,7 @@ export function createToolExecutors(
       searchKnowledgeTool(input as { query: string }),
     create_linear_issue: (input) =>
       createLinearIssueTool(input as { title: string; description: string }),
-    lookup_user: (input) => lookupUser(input as { slack_user_id: string }, ctx.slackClient),
+    list_users: () => listUsers(ctx.slackClient),
+    lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
   };
 }

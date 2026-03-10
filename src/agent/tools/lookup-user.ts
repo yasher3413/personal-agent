@@ -43,3 +43,20 @@ export async function lookupUser(input: Input, slackClient: WebClient): Promise<
     return JSON.stringify({ error: String(err) });
   }
 }
+
+export async function listUsers(slackClient: WebClient): Promise<string> {
+  try {
+    const res = await slackClient.users.list({});
+    const members = (res.members ?? [])
+      .filter((u) => !u.deleted && !u.is_bot && u.id !== "USLACKBOT")
+      .map((u) => ({
+        slack_user_id: u.id,
+        display_name: u.profile?.display_name || u.real_name,
+        real_name: u.real_name,
+        title: u.profile?.title ?? null,
+      }));
+    return JSON.stringify({ members });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
