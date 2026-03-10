@@ -53,8 +53,11 @@ export async function runAgent({
 
   const kbContext = await getKnowledgeContext();
   const system = kbContext
-    ? `${BASE_SYSTEM_PROMPT}\n\n${kbContext}`
-    : BASE_SYSTEM_PROMPT;
+    ? [
+        { type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } },
+        { type: "text" as const, text: kbContext },
+      ]
+    : [{ type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } }];
 
   return runAgentLoop({
     system,

@@ -7,8 +7,10 @@ const MEMORY_BETA = "context-management-2025-06-27";
 // Built-in memory tool definition — no schema needed, Claude knows how to use it
 const MEMORY_TOOL_DEF = { type: "memory_20250818" as const };
 
+type SystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
+
 type RunAgentLoopParams = {
-  system: string;
+  system: string | SystemBlock[];
   toolDefinitions: Anthropic.Tool[];
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
@@ -34,10 +36,13 @@ export async function runAgentLoop({
     { role: "user", content: userMessage },
   ];
 
-  // Merge memory tool into definitions if available
-  const allTools = memoryTool
+  // Merge memory tool into definitions if available, then mark last tool for caching
+  const baseTools = memoryTool
     ? ([...toolDefinitions, MEMORY_TOOL_DEF] as Anthropic.Tool[])
     : toolDefinitions;
+  const allTools = baseTools.map((t, i) =>
+    i === baseTools.length - 1 ? { ...t, cache_control: { type: "ephemeral" as const } } : t
+  );
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     let accumulatedText = "";
