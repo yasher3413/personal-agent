@@ -1,10 +1,47 @@
 import type { SlackEventMiddlewareArgs, AllMiddlewareArgs } from "@slack/bolt";
+import type { WebClient } from "@slack/web-api";
 import { runAgent } from "../../../agent/agent";
+
+type SlackMessage = { ts?: string; user?: string; text?: string; bot_id?: string };
+
+async function fetchMentionContext(
+  client: WebClient,
+  channel: string,
+  eventTs: string,
+  threadTs?: string
+): Promise<string> {
+  try {
+    if (threadTs) {
+      const res = await client.conversations.replies({ channel, ts: threadTs, limit: 50 });
+      const messages = (res.messages as SlackMessage[] ?? []).filter((m) => m.ts !== eventTs);
+      return formatMessages(messages, "Thread context");
+    } else {
+      const res = await client.conversations.history({ channel, limit: 15, latest: eventTs, inclusive: false });
+      const messages = (res.messages as SlackMessage[] ?? []).reverse();
+      return formatMessages(messages, "Recent channel context");
+    }
+  } catch {
+    return "";
+  }
+}
+
+function formatMessages(messages: SlackMessage[], label: string): string {
+  if (!messages.length) return "";
+  const lines = messages
+    .filter((m) => m.text?.trim())
+    .map((m) => {
+      const who = m.bot_id ? "bot" : `<@${m.user ?? "unknown"}>`;
+      return `${who}: ${m.text}`;
+    });
+  if (!lines.length) return "";
+  return `## ${label}\n\n${lines.join("\n")}`;
+}
 
 type AppMentionArgs = SlackEventMiddlewareArgs<"app_mention"> & AllMiddlewareArgs;
 
 const TOOL_STATUS: Record<string, string> = {
   web_search: "Searching the web...",
+  read_url: "Reading page...",
   fetch_slack_history: "Reading Slack history...",
   search_notion: "Searching Notion...",
   get_notion_page: "Reading Notion page...",
@@ -74,9 +111,12 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
     }
   };
 
+  const slackContext = await fetchMentionContext(client, event.channel, event.ts, event.thread_ts);
+
   try {
     await runAgent({
       text: event.text,
+      slackContext,
       slackClient: client,
       channel: event.channel,
       threadTs,

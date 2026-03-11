@@ -7,7 +7,7 @@ import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listL
 import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { listChannels } from "./list-channels";
-import { webSearchTool } from "./web-search";
+import { webSearchTool, readUrlTool } from "./web-search";
 
 export type ToolContext = { slackClient: WebClient };
 
@@ -201,6 +201,17 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "read_url",
+    description: "Read the full content of a URL. Use when someone shares a link and asks to summarize or explain it.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        url: { type: "string", description: "URL to read" },
+      },
+      required: ["url"],
+    },
+  },
+  {
     name: "web_search",
     description: "Search the web for current information, news, documentation, or anything not in the internal knowledge base.",
     input_schema: {
@@ -272,6 +283,7 @@ export function createToolExecutors(
     list_linear_projects: () => listLinearProjectsTool(),
     list_linear_labels: () => listLinearLabelsTool(),
     list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
+    read_url: (input) => readUrlTool(input as { url: string }),
     web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
     list_channels: () => listChannels(ctx.slackClient),
     list_users: () => listUsers(ctx.slackClient),

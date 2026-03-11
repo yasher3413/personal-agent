@@ -6,10 +6,12 @@ export async function webSearchTool(input: {
 }): Promise<string> {
   try {
     const exa = new Exa();
-    const res = await exa.searchAndContents(input.query, {
+    const res = await exa.search(input.query, {
       numResults: input.num_results ?? 5,
-      highlights: { numSentences: 3, highlightsPerUrl: 2 },
       type: "auto",
+      contents: {
+        highlights: { numSentences: 3, highlightsPerUrl: 2 },
+      },
     });
 
     const results = res.results.map((r) => ({
@@ -20,6 +22,26 @@ export async function webSearchTool(input: {
     }));
 
     return JSON.stringify({ results });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function readUrlTool(input: { url: string }): Promise<string> {
+  try {
+    const exa = new Exa();
+    const res = await exa.getContents([input.url], {
+      text: { maxCharacters: 5000 },
+    });
+
+    const page = res.results[0];
+    if (!page) return JSON.stringify({ error: "No content found for URL" });
+
+    return JSON.stringify({
+      title: page.title,
+      url: page.url,
+      text: (page as { text?: string }).text ?? null,
+    });
   } catch (err) {
     return JSON.stringify({ error: String(err) });
   }

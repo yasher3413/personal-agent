@@ -76,6 +76,7 @@ async function loadMemoryContext(userId: string): Promise<string> {
 
 type RunAgentParams = {
   text: string;
+  slackContext?: string;
   slackClient: WebClient;
   channel: string;
   threadTs: string;
@@ -86,6 +87,7 @@ type RunAgentParams = {
 
 export async function runAgent({
   text,
+  slackContext,
   slackClient,
   channel,
   threadTs,
@@ -95,7 +97,10 @@ export async function runAgent({
 }: RunAgentParams): Promise<string> {
   const ctx = { slackClient };
   const userContext = userId ? `[user: ${userId}, channel: ${channel}, thread_ts: ${threadTs}]` : `[channel: ${channel}, thread_ts: ${threadTs}]`;
-  const userMessage = `${userContext}\n\n${text.replace(/<@[^>]+>/g, "").trim()}`;
+  const mention = text.replace(/<@[^>]+>/g, "").trim();
+  const userMessage = slackContext
+    ? `${userContext}\n\n${slackContext}\n\n## User's message\n\n${mention}`
+    : `${userContext}\n\n${mention}`;
 
   const [kbContext, memoryContext] = await Promise.all([
     getKnowledgeContext(),
