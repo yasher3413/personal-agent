@@ -65,31 +65,23 @@ const TOOL_STATUS: Record<string, string> = {
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
-  // Call chat.startStream immediately so shimmer appears before any processing
-  const startRes = await client.chat.startStream({
+  // Post status immediately (equivalent of setStatus in DM) so user sees feedback right away
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let statusMsg: any = await client.chat.postMessage({
+    channel: event.channel,
+    thread_ts: threadTs,
+    text: "_Analyzing..._",
+  }).catch(() => null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const streamer: any = client.chatStream({
     channel: event.channel,
     thread_ts: threadTs,
     recipient_user_id: event.user,
     recipient_team_id: body.team_id,
-  }).catch((err) => { console.error("chat.startStream error:", err); return null; });
+    buffer_size: 32,
+  });
 
-  const streamTs = startRes?.ts ?? null;
-
-  const appendStream = async (delta: string) => {
-    if (!streamTs) return;
-    await client.chat.appendStream({ channel: event.channel, ts: streamTs, markdown_text: delta })
-      .catch((err) => console.error("chat.appendStream error:", err));
-  };
-
-  const stopStream = async () => {
-    if (!streamTs) return;
-    await client.chat.stopStream({ channel: event.channel, ts: streamTs })
-      .catch((err) => console.error("chat.stopStream error:", err));
-  };
-
-  // Separate ephemeral status message for tool feedback — deleted when response starts
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let statusMsg: any = null;
   let statusDeleted = false;
 
   const deleteStatus = async () => {
@@ -102,19 +94,13 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
 
   const onChunk = async (delta: string) => {
     await deleteStatus();
-    await appendStream(delta);
+    await streamer.append({ markdown_text: delta });
   };
 
   const onToolCall = async (toolName: string) => {
     if (statusDeleted) return;
     const status = TOOL_STATUS[toolName] ?? `Running ${toolName}...`;
-    if (!statusMsg) {
-      statusMsg = await client.chat.postMessage({
-        channel: event.channel,
-        thread_ts: threadTs,
-        text: `_${status}_`,
-      }).catch((err) => { console.error("chat.postMessage error:", err); return null; });
-    } else if (statusMsg.ts) {
+    if (statusMsg?.ts) {
       await client.chat.update({
         channel: event.channel,
         ts: statusMsg.ts,
@@ -137,10 +123,10 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
       onToolCall,
     });
     await deleteStatus();
-    await stopStream();
+    await streamer.stop({});
   } catch (err) {
     console.error("chudMessageCallback error:", err);
     await deleteStatus();
-    await stopStream();
+    await streamer.stop({});
   }
 };
