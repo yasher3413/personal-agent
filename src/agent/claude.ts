@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ClaudeMemoryTool, MemoryCommand } from "@supermemory/tools/claude-memory";
+import { logger } from "../lib/logger";
+import { safeError } from "../lib/redact";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_ITERATIONS = 20;
@@ -89,6 +91,7 @@ export async function runAgentLoop({
         if (block.type !== "tool_use") continue;
 
         if (onToolCall) await onToolCall(block.name);
+        logger.info("tool.call", { tool: block.name });
 
         const executor = toolExecutors[block.name];
 
@@ -110,7 +113,9 @@ export async function runAgentLoop({
           try {
             result = await executor(block.input);
           } catch (err) {
-            result = JSON.stringify({ error: String(err) });
+            const safe = safeError(err);
+            logger.error("tool.error", { tool: block.name, error: safe });
+            result = JSON.stringify({ error: safe });
           }
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
@@ -123,5 +128,6 @@ export async function runAgentLoop({
     break;
   }
 
+  logger.warn("agent.max_iterations", { limit: MAX_ITERATIONS });
   return "agent loop exceeded max iterations.";
 }

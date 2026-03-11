@@ -3,6 +3,9 @@ import { createClaudeMemoryTool } from "@supermemory/tools/claude-memory";
 import { runAgentLoop } from "./claude";
 import { toolDefinitions, createToolExecutors } from "./tools";
 import { getKnowledgeContext } from "../knowledge/notion-index";
+import { logger } from "../lib/logger";
+import { checkRateLimit } from "../lib/rate-limit";
+import { validateInput } from "../lib/validate";
 
 const BASE_SYSTEM_PROMPT = `\
 You are Chud, an internal AI assistant for Internet Backyard — the company behind gnomos, a financial OS.
@@ -66,11 +69,11 @@ async function loadMemoryContext(userId: string): Promise<string> {
   } catch {}
 
   if (!sections.length) {
-    console.log("[memory] no content loaded for user", userId);
+    logger.info("memory.empty", { userId });
     return "";
   }
   const ctx = `## Memory\n\n${sections.join("\n\n---\n\n")}`;
-  console.log("[memory] loaded for user", userId, "- chars:", ctx.length);
+  logger.info("memory.loaded", { userId, chars: ctx.length });
   return ctx;
 }
 
@@ -95,12 +98,33 @@ export async function runAgent({
   onChunk,
   onToolCall,
 }: RunAgentParams): Promise<string> {
+  // Rate limit
+  if (userId) {
+    const { allowed, remaining } = checkRateLimit(userId);
+    if (!allowed) {
+      logger.warn("rate_limit.exceeded", { userId, channel });
+      return "You're sending messages too quickly. Please wait a moment before trying again.";
+    }
+    if (remaining <= 2) {
+      logger.warn("rate_limit.warning", { userId, remaining });
+    }
+  }
+
+  // Validate input
+  const mention = text.replace(/<@[^>]+>/g, "").trim();
+  const validation = validateInput(mention);
+  if (!validation.ok) {
+    logger.warn("input.rejected", { userId, channel, reason: validation.reason });
+    return `I couldn't process that message: ${validation.reason}.`;
+  }
+
+  logger.info("agent.start", { userId, channel, threadTs, inputLength: mention.length });
+
   const ctx = { slackClient };
   const userContext = userId ? `[user: ${userId}, channel: ${channel}, thread_ts: ${threadTs}]` : `[channel: ${channel}, thread_ts: ${threadTs}]`;
-  const mention = text.replace(/<@[^>]+>/g, "").trim();
   const userMessage = slackContext
-    ? `${userContext}\n\n${slackContext}\n\n## User's message\n\n${mention}`
-    : `${userContext}\n\n${mention}`;
+    ? `${userContext}\n\n${slackContext}\n\n## User's message\n\n${validation.text}`
+    : `${userContext}\n\n${validation.text}`;
 
   const [kbContext, memoryContext] = await Promise.all([
     getKnowledgeContext(),
@@ -113,13 +137,21 @@ export async function runAgent({
     ...(memoryContext ? [{ type: "text" as const, text: memoryContext }] : []),
   ];
 
-  return runAgentLoop({
-    system,
-    toolDefinitions,
-    toolExecutors: createToolExecutors(ctx),
-    userMessage,
-    memoryTool: getMemoryTool(userId),
-    onChunk,
-    onToolCall,
-  });
+  const start = Date.now();
+  try {
+    const result = await runAgentLoop({
+      system,
+      toolDefinitions,
+      toolExecutors: createToolExecutors(ctx),
+      userMessage,
+      memoryTool: getMemoryTool(userId),
+      onChunk,
+      onToolCall,
+    });
+    logger.info("agent.done", { userId, channel, durationMs: Date.now() - start });
+    return result;
+  } catch (err) {
+    logger.error("agent.error", { userId, channel, error: String(err) });
+    throw err;
+  }
 }
