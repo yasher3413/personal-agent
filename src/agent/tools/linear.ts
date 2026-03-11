@@ -1,6 +1,13 @@
 import { getLinearClient } from "../../linear/client";
 import { PaginationOrderBy } from "@linear/sdk";
 
+async function resolveProjectId(linear: ReturnType<typeof getLinearClient>, project: string): Promise<string | undefined> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(project)) return project;
+  const projects = await linear.projects({ first: 50 });
+  const match = projects.nodes.find((p) => p.name.toLowerCase() === project.toLowerCase());
+  return match?.id;
+}
+
 async function getTeamId(): Promise<string> {
   const teamId = process.env.LINEAR_TEAM_ID;
   if (!teamId) throw new Error("LINEAR_TEAM_ID is missing");
@@ -34,15 +41,18 @@ export async function createLinearIssueTool(input: {
   title: string;
   description: string;
   priority?: number;
+  project?: string;
 }): Promise<string> {
   try {
     const linear = getLinearClient();
     const teamId = await getTeamId();
+    const projectId = input.project ? await resolveProjectId(linear, input.project) : undefined;
     const res = await linear.createIssue({
       teamId,
       title: input.title,
       description: input.description,
       priority: input.priority,
+      projectId,
     });
     if (!res.success || !res.issue) throw new Error("Failed to create issue");
     const issue = await res.issue;
@@ -58,6 +68,7 @@ export async function updateLinearIssueTool(input: {
   description?: string;
   priority?: number;
   state?: string;
+  project?: string;
 }): Promise<string> {
   try {
     const linear = getLinearClient();
@@ -73,11 +84,14 @@ export async function updateLinearIssueTool(input: {
       stateId = match?.id;
     }
 
+    const projectId = input.project ? await resolveProjectId(linear, input.project) : undefined;
+
     const res = await linear.updateIssue(await resolveIssueId(linear, input.id), {
       title: input.title,
       description: input.description,
       priority: input.priority,
       stateId,
+      projectId,
     });
 
     if (!res.success || !res.issue) throw new Error("Failed to update issue");
@@ -94,7 +108,7 @@ export async function getLinearIssueTool(input: { id: string }): Promise<string>
     const issue = await linear.issue(await resolveIssueId(linear, input.id));
     if (!issue) return JSON.stringify({ error: "Issue not found" });
 
-    const [state, assignee] = await Promise.all([issue.state, issue.assignee]);
+    const [state, assignee, project] = await Promise.all([issue.state, issue.assignee, issue.project]);
     return JSON.stringify({
       id: issue.id,
       identifier: issue.identifier,
@@ -103,6 +117,7 @@ export async function getLinearIssueTool(input: { id: string }): Promise<string>
       priority: issue.priority,
       state: state?.name ?? null,
       assignee: assignee?.name ?? null,
+      project: project?.name ?? null,
       url: issue.url,
       createdAt: issue.createdAt,
       updatedAt: issue.updatedAt,
@@ -137,13 +152,14 @@ export async function listLinearIssuesTool(input: {
 
     const results = await Promise.all(
       issues.nodes.map(async (issue) => {
-        const [state, assignee] = await Promise.all([issue.state, issue.assignee]);
+        const [state, assignee, project] = await Promise.all([issue.state, issue.assignee, issue.project]);
         return {
           id: issue.id,
           identifier: issue.identifier,
           title: issue.title,
           state: state?.name ?? null,
           assignee: assignee?.name ?? null,
+          project: project?.name ?? null,
           priority: issue.priority,
           url: issue.url,
         };

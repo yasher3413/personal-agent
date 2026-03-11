@@ -116,13 +116,14 @@ export const toolDefinitions: Anthropic.Tool[] = [
         title: { type: "string", description: "Issue title" },
         description: { type: "string", description: "Issue description in markdown" },
         priority: { type: "number", description: "Priority: 0=none, 1=urgent, 2=high, 3=medium, 4=low (optional)" },
+        project: { type: "string", description: "Project name or ID to assign the issue to (optional)" },
       },
       required: ["title", "description"],
     },
   },
   {
     name: "update_linear_issue",
-    description: "Update an existing Linear issue. Use to change title, description, priority, or state.",
+    description: "Update an existing Linear issue. Use to change title, description, priority, state, or project.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -131,6 +132,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
         description: { type: "string", description: "New description in markdown (optional)" },
         priority: { type: "number", description: "Priority: 0=none, 1=urgent, 2=high, 3=medium, 4=low (optional)" },
         state: { type: "string", description: "State name e.g. 'In Progress', 'Done', 'Backlog' (optional)" },
+        project: { type: "string", description: "Project name or ID to move the issue to (optional)" },
       },
       required: ["id"],
     },
@@ -273,9 +275,9 @@ export function createToolExecutors(
     update_knowledge_index_item: (input) =>
       updateKnowledgeIndexItemTool(input as { page_id: string; summary?: string; tags?: string[]; area?: string }),
     create_linear_issue: (input) =>
-      createLinearIssueTool(input as { title: string; description: string; priority?: number }),
+      createLinearIssueTool(input as { title: string; description: string; priority?: number; project?: string }),
     update_linear_issue: (input) =>
-      updateLinearIssueTool(input as { id: string; title?: string; description?: string; priority?: number; state?: string }),
+      updateLinearIssueTool(input as { id: string; title?: string; description?: string; priority?: number; state?: string; project?: string }),
     get_linear_issue: (input) => getLinearIssueTool(input as { id: string }),
     list_linear_issues: (input) =>
       listLinearIssuesTool(input as { query?: string; state?: string; assignee?: string; limit?: number }),
