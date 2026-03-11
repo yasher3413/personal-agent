@@ -65,13 +65,15 @@ const TOOL_STATUS: Record<string, string> = {
 export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
-  // Post status immediately (equivalent of setStatus in DM) so user sees feedback right away
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let statusMsg: any = await client.chat.postMessage({
-    channel: event.channel,
-    thread_ts: threadTs,
-    text: "_Analyzing..._",
-  }).catch(() => null);
+  const setStatus = async (status: string) => {
+    await client.assistant.threads.setStatus({
+      channel_id: event.channel,
+      thread_ts: threadTs,
+      status,
+    }).catch(() => {});
+  };
+
+  await setStatus("is thinking...");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const streamer: any = client.chatStream({
@@ -79,34 +81,14 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
     thread_ts: threadTs,
     recipient_user_id: event.user,
     recipient_team_id: body.team_id,
-    buffer_size: 32,
   });
 
-  let statusDeleted = false;
-
-  const deleteStatus = async () => {
-    if (!statusDeleted && statusMsg?.ts) {
-      statusDeleted = true;
-      await client.chat.delete({ channel: event.channel, ts: statusMsg.ts })
-        .catch((err) => console.error("chat.delete error:", err));
-    }
-  };
-
   const onChunk = async (delta: string) => {
-    await deleteStatus();
     await streamer.append({ markdown_text: delta });
   };
 
   const onToolCall = async (toolName: string) => {
-    if (statusDeleted) return;
-    const status = TOOL_STATUS[toolName] ?? `Running ${toolName}...`;
-    if (statusMsg?.ts) {
-      await client.chat.update({
-        channel: event.channel,
-        ts: statusMsg.ts,
-        text: `_${status}_`,
-      }).catch((err) => console.error("chat.update error:", err));
-    }
+    await setStatus(TOOL_STATUS[toolName] ?? `Running ${toolName}...`);
   };
 
   const slackContext = await fetchMentionContext(client, event.channel, event.ts, event.thread_ts);
@@ -122,11 +104,9 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
       onChunk,
       onToolCall,
     });
-    await deleteStatus();
     await streamer.stop({});
   } catch (err) {
     console.error("chudMessageCallback error:", err);
-    await deleteStatus();
     await streamer.stop({});
   }
 };
