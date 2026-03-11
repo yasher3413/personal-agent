@@ -8,6 +8,19 @@ async function resolveProjectId(linear: ReturnType<typeof getLinearClient>, proj
   return match?.id;
 }
 
+// Resolves milestone name → ID within a given project
+async function resolveProjectMilestoneId(
+  linear: ReturnType<typeof getLinearClient>,
+  projectId: string,
+  milestone: string
+): Promise<string | undefined> {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(milestone)) return milestone;
+  const project = await linear.project(projectId);
+  const milestones = await project.projectMilestones();
+  const match = milestones.nodes.find((m) => m.name.toLowerCase() === milestone.toLowerCase());
+  return match?.id;
+}
+
 async function getTeamId(): Promise<string> {
   const teamId = process.env.LINEAR_TEAM_ID;
   if (!teamId) throw new Error("LINEAR_TEAM_ID is missing");
@@ -42,17 +55,22 @@ export async function createLinearIssueTool(input: {
   description: string;
   priority?: number;
   project?: string;
+  milestone?: string;
 }): Promise<string> {
   try {
     const linear = getLinearClient();
     const teamId = await getTeamId();
     const projectId = input.project ? await resolveProjectId(linear, input.project) : undefined;
+    const projectMilestoneId = projectId && input.milestone
+      ? await resolveProjectMilestoneId(linear, projectId, input.milestone)
+      : undefined;
     const res = await linear.createIssue({
       teamId,
       title: input.title,
       description: input.description,
       priority: input.priority,
       projectId,
+      projectMilestoneId,
     });
     if (!res.success || !res.issue) throw new Error("Failed to create issue");
     const issue = await res.issue;
@@ -69,6 +87,7 @@ export async function updateLinearIssueTool(input: {
   priority?: number;
   state?: string;
   project?: string;
+  milestone?: string;
 }): Promise<string> {
   try {
     const linear = getLinearClient();
@@ -86,12 +105,27 @@ export async function updateLinearIssueTool(input: {
 
     const projectId = input.project ? await resolveProjectId(linear, input.project) : undefined;
 
+    // For milestone, we need a projectId — use provided or fetch from the issue
+    let projectMilestoneId: string | undefined;
+    if (input.milestone) {
+      let resolvedProjectId = projectId;
+      if (!resolvedProjectId) {
+        const issue = await linear.issue(await resolveIssueId(linear, input.id));
+        const issueProject = await issue.project;
+        resolvedProjectId = issueProject?.id;
+      }
+      if (resolvedProjectId) {
+        projectMilestoneId = await resolveProjectMilestoneId(linear, resolvedProjectId, input.milestone);
+      }
+    }
+
     const res = await linear.updateIssue(await resolveIssueId(linear, input.id), {
       title: input.title,
       description: input.description,
       priority: input.priority,
       stateId,
       projectId,
+      projectMilestoneId,
     });
 
     if (!res.success || !res.issue) throw new Error("Failed to update issue");
