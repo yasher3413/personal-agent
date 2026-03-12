@@ -8,7 +8,7 @@ import { checkRateLimit } from "../lib/rate-limit";
 import { validateInput } from "../lib/validate";
 
 const BASE_SYSTEM_PROMPT = `\
-You are Chud, an internal AI assistant for Internet Backyard — the company behind gnomos, a financial OS.
+You are Gork, an internal AI assistant for the team.
 
 Use tools to gather context before responding. Be concise.
 Respond in plain Slack-friendly text (bullets, no markdown headers).
@@ -80,12 +80,12 @@ async function loadMemoryContext(userId: string): Promise<string> {
 type RunAgentParams = {
   text: string;
   slackContext?: string;
-  slackClient: WebClient;
-  channel: string;
-  threadTs: string;
+  slackClient?: WebClient;
+  channel?: string;
+  threadTs?: string;
   userId?: string;
-  onChunk?: (text: string) => Promise<void>;
-  onToolCall?: (toolName: string) => Promise<void>;
+  onChunk?: (text: string) => void | Promise<void>;
+  onToolCall?: (toolName: string) => void | Promise<void>;
 };
 
 export async function runAgent({
@@ -121,7 +121,12 @@ export async function runAgent({
   logger.info("agent.start", { userId, channel, threadTs, inputLength: mention.length });
 
   const ctx = { slackClient };
-  const userContext = userId ? `[user: ${userId}, channel: ${channel}, thread_ts: ${threadTs}]` : `[channel: ${channel}, thread_ts: ${threadTs}]`;
+  const userContext = [
+    userId && `user: ${userId}`,
+    channel && `channel: ${channel}`,
+    threadTs && `thread_ts: ${threadTs}`,
+  ].filter(Boolean).join(", ");
+
   const userMessage = slackContext
     ? `${userContext}\n\n${slackContext}\n\n## User's message\n\n${validation.text}`
     : `${userContext}\n\n${validation.text}`;

@@ -23,7 +23,7 @@ export const assistant = new Assistant({
     await setSuggestedPrompts({
       prompts: [
         { title: "Search the knowledge base", message: "Search the knowledge base for..." },
-        { title: "Who's on the team?", message: "List everyone at Internet Backyard" },
+        { title: "Who's on the team?", message: "List everyone on the team" },
         { title: "Create a Linear issue", message: "Create a Linear issue for..." },
         { title: "Save this thread to KB", message: "Save this thread to the knowledge base" },
       ],

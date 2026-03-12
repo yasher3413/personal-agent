@@ -14,7 +14,7 @@ export async function searchSlackMessages({
   const cleanedQuery = query.replace(/<@[^>]+>/g, "").trim();
 
   if (!cleanedQuery) {
-    return "please give me something to search for, e.g. `@chud search slack billing`.";
+    return "please give me something to search for, e.g. `@gork search slack billing`.";
   }
 
   if (!actionToken) {

@@ -52,6 +52,8 @@ const TOOL_STATUS: Record<string, string> = {
   list_linear_issues: "Searching Linear issues...",
   lookup_user: "Looking up user...",
   add_linear_comment: "Adding comment to Linear issue...",
+  create_linear_project: "Creating Linear project...",
+  create_linear_milestone: "Creating Linear milestone...",
   list_linear_projects: "Fetching Linear projects...",
   list_linear_labels: "Fetching Linear labels...",
   list_linear_workflow_states: "Fetching Linear workflow states...",
@@ -62,7 +64,7 @@ const TOOL_STATUS: Record<string, string> = {
   update_knowledge_index_item: "Updating knowledge index...",
 };
 
-export const chudMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
+export const gorkMessageCallback = async ({ event, client, body }: AppMentionArgs) => {
   const threadTs = event.thread_ts ?? event.ts;
 
   const setStatus = async (status: string) => {
@@ -106,7 +108,7 @@ export const chudMessageCallback = async ({ event, client, body }: AppMentionArg
     });
     await streamer.stop({});
   } catch (err) {
-    console.error("chudMessageCallback error:", err);
+    console.error("gorkMessageCallback error:", err);
     await streamer.stop({});
   }
 };

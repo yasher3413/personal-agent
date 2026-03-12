@@ -220,6 +220,52 @@ export async function addLinearCommentTool(input: {
   }
 }
 
+export async function createLinearProjectTool(input: {
+  name: string;
+  description?: string;
+  target_date?: string;
+}): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const teamId = await getTeamId();
+    const res = await linear.createProject({
+      name: input.name,
+      description: input.description,
+      targetDate: input.target_date,
+      teamIds: [teamId],
+    });
+    if (!res.success || !res.project) throw new Error("Failed to create project");
+    const project = await res.project;
+    return JSON.stringify({ id: project.id, name: project.name, url: project.url });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+export async function createLinearMilestoneTool(input: {
+  project: string;
+  name: string;
+  description?: string;
+  target_date?: string;
+}): Promise<string> {
+  try {
+    const linear = getLinearClient();
+    const projectId = await resolveProjectId(linear, input.project);
+    if (!projectId) throw new Error(`Project not found: ${input.project}`);
+    const res = await linear.createProjectMilestone({
+      projectId,
+      name: input.name,
+      description: input.description,
+      targetDate: input.target_date,
+    });
+    if (!res.success || !res.projectMilestone) throw new Error("Failed to create milestone");
+    const milestone = await res.projectMilestone;
+    return JSON.stringify({ id: milestone.id, name: milestone.name });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
 export async function listLinearProjectsTool(): Promise<string> {
   try {
     const linear = getLinearClient();

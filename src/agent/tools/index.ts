@@ -3,13 +3,13 @@ import type { WebClient } from "@slack/web-api";
 import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchNotionTool, getNotionPageTool } from "./search-notion";
 import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
-import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool } from "./linear";
+import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool, createLinearProjectTool, createLinearMilestoneTool } from "./linear";
 import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { listChannels } from "./list-channels";
 import { webSearchTool, readUrlTool } from "./web-search";
 
-export type ToolContext = { slackClient: WebClient };
+export type ToolContext = { slackClient?: WebClient };
 
 export const toolDefinitions: Anthropic.Tool[] = [
   {
@@ -30,7 +30,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "search_notion",
     description:
-      "Search the Internet Backyard Notion workspace for internal documentation, processes, or knowledge. Use this to answer questions about the company, product, or team.",
+      "Search the Notion workspace for internal documentation, processes, or knowledge. Use this to answer questions about the company, product, or team.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -54,7 +54,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "write_notion_page",
     description:
-      "Create a new page in the Internet Backyard knowledge base. Use this when the user explicitly asks to save, document, or add something to the knowledge base.",
+      "Create a new page in the knowledge base. Use this when the user explicitly asks to save, document, or add something to the knowledge base.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -178,6 +178,33 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "create_linear_project",
+    description: "Create a new Linear project. Only call when the user explicitly asks to create a project.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Project name" },
+        description: { type: "string", description: "Project description (optional)" },
+        target_date: { type: "string", description: "Target completion date in YYYY-MM-DD format (optional)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "create_linear_milestone",
+    description: "Create a milestone within an existing Linear project.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        project: { type: "string", description: "Project name or ID" },
+        name: { type: "string", description: "Milestone name" },
+        description: { type: "string", description: "Milestone description (optional)" },
+        target_date: { type: "string", description: "Target date in YYYY-MM-DD format (optional)" },
+      },
+      required: ["project", "name"],
+    },
+  },
+  {
     name: "list_linear_projects",
     description: "List all Linear projects for the workspace.",
     input_schema: {
@@ -240,7 +267,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "list_users",
     description:
-      "List all active team members at Internet Backyard. Use this when asked for a directory, team list, or 'who's on the team'.",
+      "List all active team members. Use this when asked for a directory, team list, or 'who's on the team'.",
     input_schema: {
       type: "object" as const,
       properties: {},
@@ -250,7 +277,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "lookup_user",
     description:
-      "Look up an Internet Backyard team member. Provide either slack_user_id for a direct lookup, or name to search by display name or real name.",
+      "Look up a team member. Provide either slack_user_id for a direct lookup, or name to search by display name or real name.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -267,7 +294,9 @@ export function createToolExecutors(
 ): Record<string, (input: unknown) => Promise<string>> {
   return {
     fetch_slack_history: (input) =>
-      fetchSlackHistory(input as Parameters<typeof fetchSlackHistory>[0], ctx.slackClient),
+      ctx.slackClient
+        ? fetchSlackHistory(input as Parameters<typeof fetchSlackHistory>[0], ctx.slackClient)
+        : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
     search_notion: (input) => searchNotionTool(input as { query: string }),
     get_notion_page: (input) => getNotionPageTool(input as { page_id: string }),
     write_notion_page: (input) => writeNotionPageTool(input as { title: string; content: string; area?: string }),
@@ -284,13 +313,18 @@ export function createToolExecutors(
     list_linear_issues: (input) =>
       listLinearIssuesTool(input as { query?: string; state?: string; assignee?: string; limit?: number }),
     add_linear_comment: (input) => addLinearCommentTool(input as { issue_id: string; body: string }),
+    create_linear_project: (input) => createLinearProjectTool(input as { name: string; description?: string; target_date?: string }),
+    create_linear_milestone: (input) => createLinearMilestoneTool(input as { project: string; name: string; description?: string; target_date?: string }),
     list_linear_projects: () => listLinearProjectsTool(),
     list_linear_labels: () => listLinearLabelsTool(),
     list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
     read_url: (input) => readUrlTool(input as { url: string }),
     web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
-    list_channels: () => listChannels(ctx.slackClient),
-    list_users: () => listUsers(ctx.slackClient),
-    lookup_user: (input) => lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient),
+    list_channels: () =>
+      ctx.slackClient ? listChannels(ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
+    list_users: () =>
+      ctx.slackClient ? listUsers(ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
+    lookup_user: (input) =>
+      ctx.slackClient ? lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
   };
 }

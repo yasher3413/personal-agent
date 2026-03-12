@@ -17,8 +17,8 @@ type RunAgentLoopParams = {
   toolExecutors: Record<string, (input: unknown) => Promise<string>>;
   userMessage: string;
   memoryTool?: ClaudeMemoryTool;
-  onChunk?: (delta: string) => Promise<void>;
-  onToolCall?: (toolName: string) => Promise<void>;
+  onChunk?: (delta: string) => void | Promise<void>;
+  onToolCall?: (toolName: string) => void | Promise<void>;
 };
 
 export async function runAgentLoop({
