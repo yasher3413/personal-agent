@@ -4,7 +4,7 @@ import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool, createLinearProjectTool, createLinearMilestoneTool } from "./linear";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { webSearchTool, readUrlTool } from "./web-search";
-import { addTodoItemTool, listTodoItemsTool } from "./notion-todo";
+import { addTodoItemTool, listTodoItemsTool, updateTodoItemTool } from "./notion-todo";
 
 export type ToolContext = Record<string, never>;
 
@@ -265,6 +265,24 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: "update_todo_item",
+    description: "Update an existing TODO item in Notion. Use when the user asks to change status, priority, notes, or any other field on an existing task. Requires the page_id from list_todo_items.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        page_id: { type: "string", description: "Notion page ID of the todo item" },
+        name: { type: "string", description: "New task name (optional)" },
+        category: { type: "string", description: "Category (optional)" },
+        notes: { type: "string", description: "Notes (optional)" },
+        priority: { type: "string", description: "Priority (optional)" },
+        blockers: { type: "string", description: "Blockers (optional)" },
+        status: { type: "string", description: "Status (optional)" },
+        due_date: { type: "string", description: "Due date in YYYY-MM-DD format (optional)" },
+      },
+      required: ["page_id"],
+    },
+  },
 ];
 
 export function createToolExecutors(
@@ -296,5 +314,6 @@ export function createToolExecutors(
     web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
     add_todo_item: (input) => addTodoItemTool(input as { name: string; category?: string; notes?: string; priority?: string; blockers?: string; status?: string; due_date?: string }),
     list_todo_items: (input) => listTodoItemsTool(input as { status?: string; priority?: string }),
+    update_todo_item: (input) => updateTodoItemTool(input as { page_id: string; name?: string; category?: string; notes?: string; priority?: string; blockers?: string; status?: string; due_date?: string }),
   };
 }

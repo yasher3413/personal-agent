@@ -85,3 +85,35 @@ export async function listTodoItemsTool(input: {
     return JSON.stringify({ error: String(err) });
   }
 }
+
+export async function updateTodoItemTool(input: {
+  page_id: string;
+  name?: string;
+  category?: string;
+  notes?: string;
+  priority?: string;
+  blockers?: string;
+  status?: string;
+  due_date?: string;
+}): Promise<string> {
+  const notion = getNotionClient();
+  if (!notion) return JSON.stringify({ error: "NOTION_API_KEY not set" });
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const properties: Record<string, any> = {};
+
+    if (input.name) properties["Name"] = { title: [{ type: "text", text: { content: input.name } }] };
+    if (input.category) properties["Category"] = { rich_text: [{ type: "text", text: { content: input.category } }] };
+    if (input.notes) properties["Notes"] = { rich_text: [{ type: "text", text: { content: input.notes } }] };
+    if (input.priority) properties["Priority"] = { select: { name: input.priority } };
+    if (input.blockers) properties["Blockers"] = { rich_text: [{ type: "text", text: { content: input.blockers } }] };
+    if (input.status) properties["Status"] = { select: { name: input.status } };
+    if (input.due_date) properties["Due date"] = { date: { start: input.due_date } };
+
+    await notion.pages.update({ page_id: input.page_id, properties });
+    return JSON.stringify({ success: true });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
