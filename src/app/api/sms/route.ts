@@ -29,8 +29,10 @@ export async function POST(req: NextRequest) {
         await runAgent({ text, userId: from, onChunk });
 
         const chunks = response.match(/[\s\S]{1,1600}/g) ?? [];
+        console.log("SMS response length:", response.length, "chunks:", chunks.length);
         for (const chunk of chunks) {
-          await client.messages.create({ body: chunk, from: fromNumber, to: from });
+          const msg = await client.messages.create({ body: chunk, from: fromNumber, to: from });
+          console.log("SMS sent:", msg.sid, msg.status, msg.errorCode, msg.errorMessage);
         }
       } catch (err) {
         console.error("SMS handler error:", err);
