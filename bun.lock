@@ -3,13 +3,14 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "chud",
+      "name": "gork",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
         "@linear/sdk": "^76.0.0",
         "@notionhq/client": "2.2.3",
         "@slack/bolt": "^4.6.0",
         "@supermemory/tools": "^1.4.0",
+        "@vercel/functions": "^3.4.3",
         "@vercel/slack-bolt": "latest",
         "exa-js": "^2.7.0",
         "next": "16.1.6",

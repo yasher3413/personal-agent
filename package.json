@@ -1,5 +1,5 @@
 {
-  "name": "chud",
+  "name": "gork",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,6 +13,7 @@
     "@notionhq/client": "2.2.3",
     "@slack/bolt": "^4.6.0",
     "@supermemory/tools": "^1.4.0",
+    "@vercel/functions": "^3.4.3",
     "@vercel/slack-bolt": "latest",
     "exa-js": "^2.7.0",
     "next": "16.1.6",
