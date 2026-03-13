@@ -1,4 +1,4 @@
-# chud
+# Personal Assistant
 
 To install dependencies:
 
