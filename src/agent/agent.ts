@@ -1,4 +1,4 @@
-import type { WebClient } from "@slack/web-api";
+
 import { createClaudeMemoryTool } from "@supermemory/tools/claude-memory";
 import { runAgentLoop } from "./claude";
 import { toolDefinitions, createToolExecutors } from "./tools";
@@ -81,7 +81,6 @@ async function loadMemoryContext(userId: string): Promise<string> {
 type RunAgentParams = {
   text: string;
   slackContext?: string;
-  slackClient?: WebClient;
   channel?: string;
   threadTs?: string;
   userId?: string;
@@ -92,7 +91,6 @@ type RunAgentParams = {
 export async function runAgent({
   text,
   slackContext,
-  slackClient,
   channel,
   threadTs,
   userId,
@@ -121,7 +119,7 @@ export async function runAgent({
 
   logger.info("agent.start", { userId, channel, threadTs, inputLength: mention.length });
 
-  const ctx = { slackClient };
+  const ctx = {};
   const userContext = [
     userId && `user: ${userId}`,
     channel && `channel: ${channel}`,

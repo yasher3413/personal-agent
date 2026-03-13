@@ -1,32 +1,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type { WebClient } from "@slack/web-api";
-import { fetchSlackHistory } from "./fetch-slack-history";
 import { searchNotionTool, getNotionPageTool } from "./search-notion";
 import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool, createLinearProjectTool, createLinearMilestoneTool } from "./linear";
-import { lookupUser, listUsers } from "./lookup-user";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
-import { listChannels } from "./list-channels";
 import { webSearchTool, readUrlTool } from "./web-search";
 
-export type ToolContext = { slackClient?: WebClient };
+export type ToolContext = Record<string, never>;
 
 export const toolDefinitions: Anthropic.Tool[] = [
-  {
-    name: "fetch_slack_history",
-    description:
-      "Fetch messages from a Slack channel or thread. Use thread_ts to fetch replies in a specific thread.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        channel_id: { type: "string", description: "Slack channel ID" },
-        thread_ts: { type: "string", description: "Thread timestamp to fetch replies (optional)" },
-        limit: { type: "number", description: "Max messages to return (default 20)" },
-        cursor: { type: "string", description: "Pagination cursor from a previous call (optional)" },
-      },
-      required: ["channel_id"],
-    },
-  },
   {
     name: "search_notion",
     description:
@@ -254,49 +235,12 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["query"],
     },
   },
-  {
-    name: "list_channels",
-    description:
-      "List all Slack channels in the workspace. Use this when you need to find a channel by name before fetching its history.",
-    input_schema: {
-      type: "object" as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: "list_users",
-    description:
-      "List all active team members. Use this when asked for a directory, team list, or 'who's on the team'.",
-    input_schema: {
-      type: "object" as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: "lookup_user",
-    description:
-      "Look up a team member. Provide either slack_user_id for a direct lookup, or name to search by display name or real name.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        slack_user_id: { type: "string", description: "Slack user ID (e.g. U012AB3CD)" },
-        name: { type: "string", description: "Name or partial name to search for (e.g. 'jonah', 'gabe')" },
-      },
-      required: [],
-    },
-  },
 ];
 
 export function createToolExecutors(
-  ctx: ToolContext
+  _ctx: ToolContext
 ): Record<string, (input: unknown) => Promise<string>> {
   return {
-    fetch_slack_history: (input) =>
-      ctx.slackClient
-        ? fetchSlackHistory(input as Parameters<typeof fetchSlackHistory>[0], ctx.slackClient)
-        : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
     search_notion: (input) => searchNotionTool(input as { query: string }),
     get_notion_page: (input) => getNotionPageTool(input as { page_id: string }),
     write_notion_page: (input) => writeNotionPageTool(input as { title: string; content: string; area?: string }),
@@ -320,11 +264,5 @@ export function createToolExecutors(
     list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
     read_url: (input) => readUrlTool(input as { url: string }),
     web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
-    list_channels: () =>
-      ctx.slackClient ? listChannels(ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
-    list_users: () =>
-      ctx.slackClient ? listUsers(ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
-    lookup_user: (input) =>
-      ctx.slackClient ? lookupUser(input as { slack_user_id: string; name?: string }, ctx.slackClient) : Promise.resolve(JSON.stringify({ error: "Slack not available" })),
   };
 }

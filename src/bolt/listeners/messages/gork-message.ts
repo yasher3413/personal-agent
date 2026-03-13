@@ -99,7 +99,7 @@ export const gorkMessageCallback = async ({ event, client, body }: AppMentionArg
     await runAgent({
       text: event.text,
       slackContext,
-      slackClient: client,
+
       channel: event.channel,
       threadTs,
       userId: event.user,

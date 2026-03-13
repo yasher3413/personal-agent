@@ -56,7 +56,7 @@ export const assistant = new Assistant({
     };
 
     try {
-      await runAgent({ text, slackClient: client, channel, threadTs, userId: msg.user, onChunk, onToolCall });
+      await runAgent({ text, channel, threadTs, userId: msg.user, onChunk, onToolCall });
       await streamer.stop({});
     } catch (err) {
       await streamer.stop({});
