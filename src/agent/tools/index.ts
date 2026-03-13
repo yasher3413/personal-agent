@@ -4,6 +4,7 @@ import { writeNotionPageTool, appendNotionPageTool } from "./write-notion-page";
 import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listLinearIssuesTool, addLinearCommentTool, listLinearProjectsTool, listLinearLabelsTool, listLinearWorkflowStatesTool, createLinearProjectTool, createLinearMilestoneTool } from "./linear";
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { webSearchTool, readUrlTool } from "./web-search";
+import { addTodoItemTool, listTodoItemsTool } from "./notion-todo";
 
 export type ToolContext = Record<string, never>;
 
@@ -235,6 +236,35 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["query"],
     },
   },
+  {
+    name: "add_todo_item",
+    description: "Add a new item to the user's personal TODO list in Notion. Use when the user asks to add a task, reminder, or todo item.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Task name" },
+        category: { type: "string", description: "Category (e.g. Work, Personal, Health)" },
+        notes: { type: "string", description: "Additional notes" },
+        priority: { type: "string", description: "Priority level (e.g. High, Medium, Low)" },
+        blockers: { type: "string", description: "Any blockers for this task" },
+        status: { type: "string", description: "Status (e.g. Not started, In progress, Done)" },
+        due_date: { type: "string", description: "Due date in YYYY-MM-DD format" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "list_todo_items",
+    description: "List items from the user's personal TODO list in Notion. Use when the user asks to see their tasks or todos.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        status: { type: "string", description: "Filter by status (optional)" },
+        priority: { type: "string", description: "Filter by priority (optional)" },
+      },
+      required: [],
+    },
+  },
 ];
 
 export function createToolExecutors(
@@ -264,5 +294,7 @@ export function createToolExecutors(
     list_linear_workflow_states: () => listLinearWorkflowStatesTool(),
     read_url: (input) => readUrlTool(input as { url: string }),
     web_search: (input) => webSearchTool(input as { query: string; num_results?: number }),
+    add_todo_item: (input) => addTodoItemTool(input as { name: string; category?: string; notes?: string; priority?: string; blockers?: string; status?: string; due_date?: string }),
+    list_todo_items: (input) => listTodoItemsTool(input as { status?: string; priority?: string }),
   };
 }
