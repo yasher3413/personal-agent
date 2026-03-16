@@ -125,3 +125,17 @@ export async function sendEmailTool(input: {
     return JSON.stringify({ error: String(err) });
   }
 }
+
+export async function trashEmailsTool(input: { email_ids: string[] }): Promise<string> {
+  const gmail = getGmailClient();
+  if (!gmail) return JSON.stringify({ error: "Gmail not configured" });
+
+  try {
+    await Promise.all(
+      input.email_ids.map((id) => gmail.users.messages.trash({ userId: "me", id }))
+    );
+    return JSON.stringify({ success: true, trashed: input.email_ids.length });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}

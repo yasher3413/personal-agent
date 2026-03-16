@@ -6,7 +6,7 @@ import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notio
 import { webSearchTool, readUrlTool } from "./web-search";
 import { addTodoItemTool, listTodoItemsTool, updateTodoItemTool } from "./notion-todo";
 import { listCalendarEventsTool, createCalendarEventTool, updateCalendarEventTool, deleteCalendarEventTool } from "./google-calendar";
-import { listEmailsTool, getEmailTool, sendEmailTool } from "./gmail";
+import { listEmailsTool, getEmailTool, sendEmailTool, trashEmailsTool } from "./gmail";
 
 export type ToolContext = Record<string, never>;
 
@@ -380,6 +380,17 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["to", "subject", "body"],
     },
   },
+  {
+    name: "trash_emails",
+    description: "Move one or more emails to trash in Gmail. Use when the user asks to delete, trash, or remove emails.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        email_ids: { type: "array", items: { type: "string" }, description: "List of Gmail message IDs to trash" },
+      },
+      required: ["email_ids"],
+    },
+  },
 ];
 
 export function createToolExecutors(
@@ -419,5 +430,6 @@ export function createToolExecutors(
     list_emails: (input) => listEmailsTool(input as { max_results?: number; query?: string; unread_only?: boolean }),
     get_email: (input) => getEmailTool(input as { email_id: string }),
     send_email: (input) => sendEmailTool(input as { to: string; subject: string; body: string; cc?: string }),
+    trash_emails: (input) => trashEmailsTool(input as { email_ids: string[] }),
   };
 }
