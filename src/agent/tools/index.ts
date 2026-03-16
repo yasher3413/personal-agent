@@ -5,6 +5,7 @@ import { createLinearIssueTool, updateLinearIssueTool, getLinearIssueTool, listL
 import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notion-index";
 import { webSearchTool, readUrlTool } from "./web-search";
 import { addTodoItemTool, listTodoItemsTool, updateTodoItemTool } from "./notion-todo";
+import { listCalendarEventsTool, createCalendarEventTool, updateCalendarEventTool, deleteCalendarEventTool } from "./google-calendar";
 
 export type ToolContext = Record<string, never>;
 
@@ -283,6 +284,63 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["page_id"],
     },
   },
+  {
+    name: "list_calendar_events",
+    description: "List upcoming events from Google Calendar. Use when the user asks what's on their schedule, calendar, or agenda.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        days_ahead: { type: "number", description: "How many days ahead to look (default 7)" },
+        max_results: { type: "number", description: "Max events to return (default 10)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "create_calendar_event",
+    description: "Create a new Google Calendar event. Can add attendees (sends invites) and create Google Meet links. Use ISO 8601 format for start/end (e.g. 2026-03-17T14:00:00).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string", description: "Event title" },
+        start: { type: "string", description: "Start time in ISO 8601 format" },
+        end: { type: "string", description: "End time in ISO 8601 format" },
+        description: { type: "string", description: "Event description (optional)" },
+        location: { type: "string", description: "Location (optional)" },
+        attendees: { type: "array", items: { type: "string" }, description: "List of attendee email addresses (optional)" },
+        add_google_meet: { type: "boolean", description: "Whether to add a Google Meet link (optional)" },
+      },
+      required: ["title", "start", "end"],
+    },
+  },
+  {
+    name: "update_calendar_event",
+    description: "Update an existing Google Calendar event. Requires event_id from list_calendar_events.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        event_id: { type: "string", description: "Google Calendar event ID" },
+        title: { type: "string", description: "New title (optional)" },
+        start: { type: "string", description: "New start time in ISO 8601 format (optional)" },
+        end: { type: "string", description: "New end time in ISO 8601 format (optional)" },
+        description: { type: "string", description: "New description (optional)" },
+        location: { type: "string", description: "New location (optional)" },
+        attendees: { type: "array", items: { type: "string" }, description: "Updated attendee list (optional)" },
+      },
+      required: ["event_id"],
+    },
+  },
+  {
+    name: "delete_calendar_event",
+    description: "Delete a Google Calendar event. Requires event_id from list_calendar_events.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        event_id: { type: "string", description: "Google Calendar event ID" },
+      },
+      required: ["event_id"],
+    },
+  },
 ];
 
 export function createToolExecutors(
@@ -315,5 +373,9 @@ export function createToolExecutors(
     add_todo_item: (input) => addTodoItemTool(input as { name: string; category?: string; notes?: string; priority?: string; blockers?: string; status?: string; due_date?: string }),
     list_todo_items: (input) => listTodoItemsTool(input as { status?: string; priority?: string }),
     update_todo_item: (input) => updateTodoItemTool(input as { page_id: string; name?: string; category?: string; notes?: string; priority?: string; blockers?: string; status?: string; due_date?: string }),
+    list_calendar_events: (input) => listCalendarEventsTool(input as { days_ahead?: number; max_results?: number }),
+    create_calendar_event: (input) => createCalendarEventTool(input as { title: string; start: string; end: string; description?: string; location?: string; attendees?: string[]; add_google_meet?: boolean }),
+    update_calendar_event: (input) => updateCalendarEventTool(input as { event_id: string; title?: string; start?: string; end?: string; description?: string; location?: string; attendees?: string[] }),
+    delete_calendar_event: (input) => deleteCalendarEventTool(input as { event_id: string }),
   };
 }
