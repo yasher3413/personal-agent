@@ -135,8 +135,9 @@ export async function runAgent({
     userId ? loadMemoryContext(userId) : Promise.resolve(""),
   ]);
 
+  const today = new Date().toISOString().slice(0, 10);
   const system = [
-    { type: "text" as const, text: BASE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } },
+    { type: "text" as const, text: `${BASE_SYSTEM_PROMPT}\n\nToday's date is ${today}.`, cache_control: { type: "ephemeral" as const } },
     ...(kbContext ? [{ type: "text" as const, text: kbContext }] : []),
     ...(memoryContext ? [{ type: "text" as const, text: memoryContext }] : []),
   ];
