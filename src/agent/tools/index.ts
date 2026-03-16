@@ -6,6 +6,7 @@ import { addKnowledgeIndexItemTool, updateKnowledgeIndexItemTool } from "./notio
 import { webSearchTool, readUrlTool } from "./web-search";
 import { addTodoItemTool, listTodoItemsTool, updateTodoItemTool } from "./notion-todo";
 import { listCalendarEventsTool, createCalendarEventTool, updateCalendarEventTool, deleteCalendarEventTool } from "./google-calendar";
+import { listEmailsTool, getEmailTool, sendEmailTool } from "./gmail";
 
 export type ToolContext = Record<string, never>;
 
@@ -341,6 +342,44 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["event_id"],
     },
   },
+  {
+    name: "list_emails",
+    description: "List recent emails from Gmail. Use when the user asks to check their email, inbox, or unread messages.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        max_results: { type: "number", description: "Max emails to return (default 10)" },
+        query: { type: "string", description: "Gmail search query (optional, e.g. 'from:john@example.com')" },
+        unread_only: { type: "boolean", description: "Only return unread emails (optional)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_email",
+    description: "Read the full content of a specific email. Use after list_emails to read a specific message.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        email_id: { type: "string", description: "Gmail message ID from list_emails" },
+      },
+      required: ["email_id"],
+    },
+  },
+  {
+    name: "send_email",
+    description: "Send an email via Gmail. IMPORTANT: Always show the full draft to the user and wait for explicit confirmation before calling this tool.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        to: { type: "string", description: "Recipient email address" },
+        subject: { type: "string", description: "Email subject" },
+        body: { type: "string", description: "Email body (plain text)" },
+        cc: { type: "string", description: "CC email address (optional)" },
+      },
+      required: ["to", "subject", "body"],
+    },
+  },
 ];
 
 export function createToolExecutors(
@@ -377,5 +416,8 @@ export function createToolExecutors(
     create_calendar_event: (input) => createCalendarEventTool(input as { title: string; start: string; end: string; description?: string; location?: string; attendees?: string[]; add_google_meet?: boolean }),
     update_calendar_event: (input) => updateCalendarEventTool(input as { event_id: string; title?: string; start?: string; end?: string; description?: string; location?: string; attendees?: string[] }),
     delete_calendar_event: (input) => deleteCalendarEventTool(input as { event_id: string }),
+    list_emails: (input) => listEmailsTool(input as { max_results?: number; query?: string; unread_only?: boolean }),
+    get_email: (input) => getEmailTool(input as { email_id: string }),
+    send_email: (input) => sendEmailTool(input as { to: string; subject: string; body: string; cc?: string }),
   };
 }
