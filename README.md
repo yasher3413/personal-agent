@@ -1,4 +1,4 @@
-# Gork Personal Assistant
+# Personal Assistant
 
 Internal, multi-channel assistant built on Next.js API routes. It handles incoming webhooks (SMS and Telegram) and can use tools for Slack, Notion, Linear, Gmail/Calendar, and knowledge retrieval.
 
